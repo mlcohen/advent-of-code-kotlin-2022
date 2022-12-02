@@ -65,11 +65,11 @@ object Solution {
         actions: List<Pair<Char, Char>>,
         handForYourAction: (action: Char, opponentHand: Hand) -> Hand,
     ): Int {
-        return actions.fold(0) { score, (opponentAction, yourAction) ->
+        return actions.sumOf { (opponentAction, yourAction) ->
             val opponentHand = handForOpponentAction(opponentAction)
             val yourHand = handForYourAction(yourAction, opponentHand)
 
-            score + HAND_POINTS[yourHand]!! + if (yourHand.defeats(opponentHand)) {
+            HAND_POINTS[yourHand]!! + if (yourHand.defeats(opponentHand)) {
                 WIN_GAME_POINTS
             } else if (opponentHand.defeats(yourHand)) {
                 LOSE_GAME_POINTS
@@ -78,6 +78,7 @@ object Solution {
             }
         }
     }
+
 }
 
 fun runSolutionPart1(actions: List<Pair<Char, Char>>) {
