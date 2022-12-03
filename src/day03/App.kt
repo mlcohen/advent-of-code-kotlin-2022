@@ -1,9 +1,9 @@
 package day03
 
-import common.Puzzle
+import common.Solution
 
-object Day03 : Puzzle<Int>(day = 3) {
-    override fun part1(input: List<String>): Int {
+object Day03 : Solution.LinedInput(day = 3) {
+    override fun part1(input: List<String>): Any {
         val sum = input.map { items ->
             val firstCompartment = items.subSequence(0, items.length / 2).toSet()
             val secondCompartment = items.subSequence((items.length / 2), items.length).toSet()
@@ -22,7 +22,7 @@ object Day03 : Puzzle<Int>(day = 3) {
         return sum
     }
 
-    override fun part2(input: List<String>): Int {
+    override fun part2(input: List<String>): Any {
         val sum = input.chunked(3)
             .map { group -> group.map { it.toSet() }.reduce { acc, item -> acc.intersect(item) }.first() }
             .map { item ->
@@ -40,5 +40,5 @@ object Day03 : Puzzle<Int>(day = 3) {
 }
 
 fun main() {
-    Day03.run()
+    Day03.solve()
 }

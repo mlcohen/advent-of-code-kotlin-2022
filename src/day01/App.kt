@@ -1,35 +1,27 @@
 package day01
 
-import common.readInputLines
-import java.io.File
+import common.Solution
 
-fun processInput(lines: List<String>): List<List<Int>> {
-    return lines.fold(mutableListOf(mutableListOf<Int>())) { groups, line ->
-        if (line.isEmpty()) {
-            groups.add(mutableListOf())
-        } else {
-            groups.last().add(line.toInt())
-        }
-        groups
+object Day01 : Solution.GroupedLinedInput(day = 1) {
+
+    override fun part1(input: List<List<String>>): Any {
+        return input
+            .map { it.map(String::toInt) }
+            .sortedBy { it.sum() }
+            .last()
+            .sum()
     }
-}
 
-fun runSolutionPart1(input: List<List<Int>>) {
-    val answer = input.sortedBy { it.sum() }.last().sum()
-    println("*** Solution for Day 1, part 1")
-    println("answer: $answer")
-}
+    override fun part2(input: List<List<String>>): Any {
+        return input
+            .map { it.map(String::toInt) }
+            .sortedBy { it.sum() }
+            .takeLast(3)
+            .sumOf { it.sum() }
+    }
 
-fun runSolutionPart2(input: List<List<Int>>) {
-    val answer = input.sortedBy { it.sum() }.takeLast(3).sumOf { it.sum() }
-    println("*** Solution for Day 1, part 2")
-    println("answer: $answer")
 }
 
 fun main() {
-    val rawInput = readInputLines("input/day01")
-    val input = processInput(rawInput)
-
-    runSolutionPart1(input)
-    runSolutionPart2(input)
+    Day01.solve()
 }

@@ -1,6 +1,6 @@
 package day02
 
-import common.readInputLines
+import common.Solution
 
 fun parseInput(lines: List<String>): List<Pair<Char, Char>> {
     return lines.map { line ->
@@ -59,7 +59,7 @@ const val WIN_GAME_POINTS = 6
 const val TIE_GAME_POINTS = 3
 const val LOSE_GAME_POINTS = 0
 
-object Solution {
+object Game {
 
     fun run (
         actions: List<Pair<Char, Char>>,
@@ -81,43 +81,40 @@ object Solution {
 
 }
 
-fun runSolutionPart1(actions: List<Pair<Char, Char>>) {
-    val actionGuide = mapOf(
-        'X' to Hand.Rock,
-        'Y' to Hand.Paper,
-        'Z' to Hand.Scissors,
-    )
+object Day02 : Solution.LinedInput(day = 2) {
 
-    val handForYourAction = { action: Char, _: Hand -> actionGuide[action]!! }
+    override fun part1(input: List<String>): Any {
+        val actions = parseInput(input)
+        val actionGuide = mapOf(
+            'X' to Hand.Rock,
+            'Y' to Hand.Paper,
+            'Z' to Hand.Scissors,
+        )
 
-    val score = Solution.run(actions, handForYourAction)
+        val handForYourAction = { action: Char, _: Hand -> actionGuide[action]!! }
 
-    println("*** Solution for Day 2, part 1")
-    println("score = $score")
-}
+        return Game.run(actions, handForYourAction)
+    }
 
-fun runSolutionPart2(actions: List<Pair<Char, Char>>) {
-    val actionGuide = mapOf(
-        'X' to PlayerStrategy.LOSE,
-        'Y' to PlayerStrategy.DRAW,
-        'Z' to PlayerStrategy.WIN,
-    )
+    override fun part2(input: List<String>): Any {
+        val actions = parseInput(input)
+        val actionGuide = mapOf(
+            'X' to PlayerStrategy.LOSE,
+            'Y' to PlayerStrategy.DRAW,
+            'Z' to PlayerStrategy.WIN,
+        )
 
-    val handForYourAction = { action: Char, opponentHand: Hand -> when (actionGuide[action]!!) {
-        PlayerStrategy.DRAW -> opponentHand
-        PlayerStrategy.LOSE -> opponentHand.beats
-        PlayerStrategy.WIN -> opponentHand.losesTo
-    } }
+        val handForYourAction = { action: Char, opponentHand: Hand -> when (actionGuide[action]!!) {
+            PlayerStrategy.DRAW -> opponentHand
+            PlayerStrategy.LOSE -> opponentHand.beats
+            PlayerStrategy.WIN -> opponentHand.losesTo
+        } }
 
-    val score = Solution.run(actions, handForYourAction)
+        return Game.run(actions, handForYourAction)
+    }
 
-    println("*** Solution for Day 2, part 2")
-    println("score = $score")
 }
 
 fun main() {
-    val rawInput = readInputLines("input/day02")
-    val actions = parseInput(rawInput)
-    runSolutionPart1(actions)
-    runSolutionPart2(actions)
+    Day02.solve()
 }
