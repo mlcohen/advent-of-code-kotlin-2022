@@ -3,7 +3,7 @@ package day03.main
 import java.io.File
 
 fun runSolutionPart1(input: List<String>) {
-    println("*** Solution for Day 2, part 1")
+    println("*** Solution for Day 3, part 1")
 
     val sum = input.map { items ->
             val firstCompartment = items.subSequence(0, items.length / 2).toSet()
@@ -24,7 +24,7 @@ fun runSolutionPart1(input: List<String>) {
 }
 
 fun runSolutionPart2(input: List<String>) {
-    println("*** Solution for Day 2, part 2")
+    println("*** Solution for Day 3, part 2")
 
     val sum = input.chunked(3)
         .map { group -> group.map { it.toSet() }.reduce { acc, item -> acc.intersect(item) }.first() }
