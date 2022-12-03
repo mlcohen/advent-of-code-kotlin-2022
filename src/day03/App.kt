@@ -2,6 +2,14 @@ package day03
 
 import common.Solution
 
+object Rucksack {
+    fun priorityForItem(item: Char): Int = when(item) {
+        in 'a'..'z' -> item - 'a' + 1
+        in 'A'..'Z' -> item - 'A' + 27
+        else -> throw error("Invalid item ${item}")
+    }
+}
+
 object Day03 : Solution.LinedInput(day = 3) {
     override fun part1(input: List<String>): Any {
         val sum = input.map { items ->
@@ -10,11 +18,7 @@ object Day03 : Solution.LinedInput(day = 3) {
             firstCompartment.intersect(secondCompartment).first()
         }
             .map { item ->
-                val priority = when(item) {
-                    in 'a'..'z' -> item - 'a' + 1
-                    in 'A'..'Z' -> item - 'A' + 27
-                    else -> throw error("Invalid item ${item}")
-                }
+                val priority = Rucksack.priorityForItem(item)
                 (item to priority)
             }
             .sumOf { it.second }
@@ -26,11 +30,7 @@ object Day03 : Solution.LinedInput(day = 3) {
         val sum = input.chunked(3)
             .map { group -> group.map { it.toSet() }.reduce { acc, item -> acc.intersect(item) }.first() }
             .map { item ->
-                val priority = when(item) {
-                    in 'a'..'z' -> item - 'a' + 1
-                    in 'A'..'Z' -> item - 'A' + 27
-                    else -> throw error("Invalid item ${item}")
-                }
+                val priority = Rucksack.priorityForItem(item)
                 (item to priority)
             }
             .sumOf { it.second }
