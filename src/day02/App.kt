@@ -1,6 +1,6 @@
-package day02.main
+package day02
 
-import java.io.File
+import common.readInputLines
 
 fun parseInput(lines: List<String>): List<Pair<Char, Char>> {
     return lines.map { line ->
@@ -116,7 +116,7 @@ fun runSolutionPart2(actions: List<Pair<Char, Char>>) {
 }
 
 fun main() {
-    val rawInput = File("input/day02").readLines()
+    val rawInput = readInputLines("input/day02")
     val actions = parseInput(rawInput)
     runSolutionPart1(actions)
     runSolutionPart2(actions)

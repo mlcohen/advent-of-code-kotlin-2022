@@ -1,5 +1,6 @@
-package day01.main
+package day01
 
+import common.readInputLines
 import java.io.File
 
 fun processInput(lines: List<String>): List<List<Int>> {
@@ -26,7 +27,7 @@ fun runSolutionPart2(input: List<List<Int>>) {
 }
 
 fun main() {
-    val rawInput = File("input/day01").readLines()
+    val rawInput = readInputLines("input/day01")
     val input = processInput(rawInput)
 
     runSolutionPart1(input)
