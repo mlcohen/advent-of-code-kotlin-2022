@@ -116,7 +116,7 @@ fun runSolutionPart2(actions: List<Pair<Char, Char>>) {
 }
 
 fun main() {
-    val rawInput = File("src/day02/resources/input.txt").readLines()
+    val rawInput = File("input/day02").readLines()
     val actions = parseInput(rawInput)
     runSolutionPart1(actions)
     runSolutionPart2(actions)

@@ -26,7 +26,7 @@ fun runSolutionPart2(input: List<List<Int>>) {
 }
 
 fun main() {
-    val rawInput = File("src/day01/resources/input.txt").readLines()
+    val rawInput = File("input/day01").readLines()
     val input = processInput(rawInput)
 
     runSolutionPart1(input)

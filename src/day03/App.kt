@@ -1,4 +1,4 @@
-package day03.main
+package day03
 
 import java.io.File
 
@@ -42,7 +42,7 @@ fun runSolutionPart2(input: List<String>) {
 }
 
 fun main() {
-    val input = File("src/day03/resources/input.txt").readLines()
+    val input = File("input/day03").readLines()
     runSolutionPart1(input)
     runSolutionPart2(input)
 }
