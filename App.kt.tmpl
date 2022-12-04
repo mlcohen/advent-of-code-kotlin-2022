@@ -7,7 +7,9 @@ typealias ParsedInput = List<String>
 object Day#DAY : Solution.LinedInput<ParsedInput>(day = #DAY) {
 
     override fun parseInput(input: List<String>): ParsedInput {
-        return input
+        return input.map{ line ->
+            line
+        }
     }
 
     override fun part1(input: ParsedInput): Any {
