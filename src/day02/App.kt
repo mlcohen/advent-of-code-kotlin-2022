@@ -2,15 +2,6 @@ package day02
 
 import common.Solution
 
-fun parseInput(lines: List<String>): List<Pair<Char, Char>> {
-    return lines.map { line ->
-        val values = line.split(" ")
-        val charA = values.first().first()
-        val charB = values.last().first()
-        (charA to charB)
-    }
-}
-
 sealed class Hand() {
 
     abstract val beats: Hand
@@ -81,10 +72,20 @@ object Game {
 
 }
 
-object Day02 : Solution.LinedInput(day = 2) {
+typealias ParsedInput = List<Pair<Char, Char>>
 
-    override fun part1(input: List<String>): Any {
-        val actions = parseInput(input)
+object Day02 : Solution.LinedInput<ParsedInput>(day = 2) {
+
+    override fun parseInput(input: List<String>): ParsedInput {
+        return input.map { line ->
+            val values = line.split(" ")
+            val charA = values.first().first()
+            val charB = values.last().first()
+            (charA to charB)
+        }
+    }
+
+    override fun part1(actions: ParsedInput): Any {
         val actionGuide = mapOf(
             'X' to Hand.Rock,
             'Y' to Hand.Paper,
@@ -96,8 +97,7 @@ object Day02 : Solution.LinedInput(day = 2) {
         return Game.run(actions, handForYourAction)
     }
 
-    override fun part2(input: List<String>): Any {
-        val actions = parseInput(input)
+    override fun part2(actions: ParsedInput): Any {
         val actionGuide = mapOf(
             'X' to PlayerStrategy.LOSE,
             'Y' to PlayerStrategy.DRAW,

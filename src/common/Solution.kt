@@ -1,6 +1,6 @@
 package common
 
-sealed class Solution<T> {
+sealed class Solution<T, I> {
 
     private val day: Int;
 
@@ -10,44 +10,47 @@ sealed class Solution<T> {
 
     fun solve(test: Boolean = false) {
         val filename = "input/day${day.toString().padStart(2, padChar = '0')}${if (test) "_test" else ""}"
-        val input = processInput(filename)
+        val preprocessedInput = preprocessInput(filename)
+        var parsedInput = parseInput(preprocessedInput)
         println("Solution for day ${day}\n")
         println("*** part 1")
-        println("result = ${part1(input)}")
+        println("result = ${part1(parsedInput)}")
         println()
         println("*** part 2")
-        println("result = ${part2(input)}")
+        println("result = ${part2(parsedInput)}")
     }
 
-    protected abstract fun processInput(filename: String): T;
+    protected abstract fun preprocessInput(filename: String): T;
 
-    abstract fun part1(input: T): Any;
+    abstract fun parseInput(input: T): I;
 
-    abstract fun part2(input: T): Any;
+    abstract fun part1(input: I): Any;
 
-    abstract class LinedInput : Solution<List<String>> {
+    abstract fun part2(input: I): Any;
+
+    abstract class LinedInput<I> : Solution<List<String>, I> {
 
         constructor(day: Int): super(day)
 
-        override fun processInput(filename: String): List<String>
+        override fun preprocessInput(filename: String): List<String>
                 = readInputLines(filename)
 
-        abstract override fun part1(input: List<String>): Any;
+        abstract override fun part1(input: I): Any;
 
-        abstract override fun part2(input: List<String>): Any;
+        abstract override fun part2(input: I): Any;
 
     }
 
-    abstract class GroupedLinedInput : Solution<List<List<String>>> {
+    abstract class GroupedLinedInput<I> : Solution<List<List<String>>, I> {
 
         constructor(day: Int): super(day)
 
-        override fun processInput(filename: String): List<List<String>>
+        override fun preprocessInput(filename: String): List<List<String>>
                 = readInputGroupedLines(filename)
 
-        abstract override fun part1(input: List<List<String>>): Any;
+        abstract override fun part1(input: I): Any;
 
-        abstract override fun part2(input: List<List<String>>): Any;
+        abstract override fun part2(input: I): Any;
 
     }
 
