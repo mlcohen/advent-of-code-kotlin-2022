@@ -17,13 +17,10 @@ fun Section.overlaps(section: Section): Boolean {
 object Day04 : Solution.LinedInput<ParsedInput>(day = 4) {
 
     override fun parseInput(input: List<String>): ParsedInput {
-        return input.map {
-            it.split(',').map { sectionPair ->
-                sectionPair
-                    .split('-')
-                    .map(String::toInt)
-                    .let { sectionIds -> (sectionIds.first() to sectionIds.last()) }
-            }.let { pair -> (pair.first() to pair.last()) }
+        return input.map { line ->
+            line.split(',').map { range ->
+                range.split('-').map(String::toInt).let { (a, b) -> (a to b) }
+            }.let { (r1, r2) -> (r1 to r2) }
         }
     }
 
