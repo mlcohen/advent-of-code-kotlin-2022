@@ -8,3 +8,4 @@ Solutions in [Kotlin](https://www.kotlinlang.org/)
 | [2](https://adventofcode.com/2022/day/2) | Rock Paper Scissors     | [src/day02](src/day02/App.kt) |
 | [3](https://adventofcode.com/2022/day/3) | Rucksack Reorganization | [src/day03](src/day03/App.kt) |
 | [4](https://adventofcode.com/2022/day/4) | Camp Cleanup            | [src/day04](src/day04/App.kt) |
+| [5](https://adventofcode.com/2022/day/5) | Supply Stacks           | [src/day05](src/day05/App.kt) |

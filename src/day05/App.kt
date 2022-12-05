@@ -7,17 +7,33 @@ typealias CrateStack = List<Char>
 typealias CrateStacks = List<CrateStack>
 typealias MoveActions = List<MoveAction>
 
-fun CrateStacks.apply(moveAction: MoveAction): CrateStacks {
-    val fromStack = this[moveAction.from]
-    val toStack = this[moveAction.to]
-    val crates = fromStack.takeLast(moveAction.numCrates).reversed()
+abstract class CreateStackOperator {
+    fun apply(crateStacks: CrateStacks, moveAction: MoveAction): CrateStacks {
+        val fromStack = crateStacks[moveAction.from]
+        val toStack = crateStacks[moveAction.to]
+        val crates = this.pickCratesFromStack(fromStack, moveAction.numCrates)
 
-    return this.mapIndexed { idx, stack ->
-        when (idx) {
-            moveAction.to -> toStack + crates
-            moveAction.from -> fromStack.dropLast(moveAction.numCrates)
-            else -> stack
+        return crateStacks.mapIndexed { idx, stack ->
+            when (idx) {
+                moveAction.to -> toStack + crates
+                moveAction.from -> fromStack.dropLast(moveAction.numCrates)
+                else -> stack
+            }
         }
+    }
+
+    protected abstract fun pickCratesFromStack(stack: List<Char>, numCrates: Int): List<Char>;
+}
+
+object CreateStackOperator9000: CreateStackOperator() {
+    override fun pickCratesFromStack(stack: List<Char>, numCrates: Int): List<Char> {
+        return stack.takeLast(numCrates).reversed()
+    }
+}
+
+object CreateStackOperator9001: CreateStackOperator() {
+    override fun pickCratesFromStack(stack: List<Char>, numCrates: Int): List<Char> {
+        return stack.takeLast(numCrates)
     }
 }
 
@@ -70,12 +86,16 @@ object Day05 : Solution.GroupedLinedInput<ParsedInput>(day = 5) {
         val (crateStacks, moveActions) = input
 
         return moveActions.fold(crateStacks) { currCrateStacks, action ->
-            currCrateStacks.apply(action)
+            CreateStackOperator9000.apply(currCrateStacks, action)
         }.map { it.last() }.joinToString(separator = "") { it.toString() }
     }
 
     override fun part2(input: ParsedInput): Any {
-        return Unit
+        val (crateStacks, moveActions) = input
+
+        return moveActions.fold(crateStacks) { currCrateStacks, action ->
+            CreateStackOperator9001.apply(currCrateStacks, action)
+        }.map { it.last() }.joinToString(separator = "") { it.toString() }
     }
 }
 
