@@ -1,4 +1,6 @@
-package day05_second_attempt
+package day05.solution2
+
+// An attempt to create a minimal solution
 
 import common.readInputGroupedLines
 

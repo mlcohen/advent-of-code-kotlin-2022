@@ -1,37 +1,53 @@
-package day05
+package day05.solution3
+
+// Took original solution (solution 1) and did some refactoring
 
 import common.Solution
 
-data class MoveAction(val numCrates: Int, val from: Int, val to: Int);
+data class MoveAction(val amount: Int, val from: Int, val to: Int);
 typealias CrateStack = List<Char>
 typealias CrateStacks = List<CrateStack>
 typealias MoveActions = List<MoveAction>
 
-abstract class CrateStackOperator {
-    fun apply(crateStacks: CrateStacks, moveAction: MoveAction): CrateStacks {
+interface CratePicker {
+    fun pickCratesFromStack(stack: List<Char>, numCrates: Int): List<Char>;
+}
+
+class CrateStackOperator {
+    private val cratePicker: CratePicker;
+
+    constructor(cratePicker: CratePicker) {
+        this.cratePicker = cratePicker
+    }
+
+    fun applyMove(crateStacks: CrateStacks, moveAction: MoveAction): CrateStacks {
         val fromStack = crateStacks[moveAction.from]
         val toStack = crateStacks[moveAction.to]
-        val crates = this.pickCratesFromStack(fromStack, moveAction.numCrates)
+        val crates = this.cratePicker.pickCratesFromStack(fromStack, moveAction.amount)
 
         return crateStacks.mapIndexed { idx, stack ->
             when (idx) {
                 moveAction.to -> toStack + crates
-                moveAction.from -> fromStack.dropLast(moveAction.numCrates)
+                moveAction.from -> fromStack.dropLast(moveAction.amount)
                 else -> stack
             }
         }
     }
 
-    protected abstract fun pickCratesFromStack(stack: List<Char>, numCrates: Int): List<Char>;
+    fun applyMoves(crateStacks: CrateStacks, moveActions: MoveActions): CrateStacks {
+        return moveActions.fold(crateStacks) { currCrateStacks, action ->
+            this.applyMove(currCrateStacks, action)
+        }
+    }
 }
 
-object CrateStackOperator9000: CrateStackOperator() {
+object CratePicker9000: CratePicker {
     override fun pickCratesFromStack(stack: List<Char>, numCrates: Int): List<Char> {
         return stack.takeLast(numCrates).reversed()
     }
 }
 
-object CrateStackOperator9001: CrateStackOperator() {
+object CratePicker9001: CratePicker {
     override fun pickCratesFromStack(stack: List<Char>, numCrates: Int): List<Char> {
         return stack.takeLast(numCrates)
     }
@@ -41,6 +57,10 @@ fun CrateStacks.print(): Unit {
     this.forEachIndexed { idx, stack ->
         println("Stack ${idx + 1}: $stack")
     }
+}
+
+fun CrateStacks.message(): String {
+    return this.map { if (it.isNotEmpty()) it.last() else "" }.joinToString("")
 }
 
 typealias ParsedInput = Pair<CrateStacks, MoveActions>
@@ -67,10 +87,10 @@ object Day05 : Solution.GroupedLinedInput<ParsedInput>(day = 5) {
     private fun parseMoveActionsInputSegment(input: List<String>): MoveActions {
         return input.map { line ->
             line.split(" ").let { tokens ->
-                val numCrates = tokens[1]!!.toInt()
-                val fromIdx = tokens[3]!!.toInt() - 1
-                val toIdx = tokens[5]!!.toInt() - 1
-                MoveAction(numCrates = numCrates, from = fromIdx, to = toIdx)
+                val amount = tokens[1].toInt()
+                val from_ = tokens[3].toInt() - 1
+                val to_ = tokens[5].toInt() - 1
+                MoveAction(amount, from_, to_)
             }
         }
     }
@@ -84,18 +104,14 @@ object Day05 : Solution.GroupedLinedInput<ParsedInput>(day = 5) {
 
     override fun part1(input: ParsedInput): Any {
         val (crateStacks, moveActions) = input
-
-        return moveActions.fold(crateStacks) { currCrateStacks, action ->
-            CrateStackOperator9000.apply(currCrateStacks, action)
-        }.map { it.last() }.joinToString(separator = "") { it.toString() }
+        val operator = CrateStackOperator(cratePicker = CratePicker9000)
+        return operator.applyMoves(crateStacks, moveActions).message()
     }
 
     override fun part2(input: ParsedInput): Any {
         val (crateStacks, moveActions) = input
-
-        return moveActions.fold(crateStacks) { currCrateStacks, action ->
-            CrateStackOperator9001.apply(currCrateStacks, action)
-        }.map { it.last() }.joinToString(separator = "") { it.toString() }
+        val operator = CrateStackOperator(cratePicker = CratePicker9001)
+        return operator.applyMoves(crateStacks, moveActions).message()
     }
 }
 
