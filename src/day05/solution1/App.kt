@@ -1,6 +1,6 @@
 package day05.solution1
 
-// Original AoC solution used to solve the puzzle
+// Original solution used to solve the AoC day 5 puzzle. Warts and all.
 
 import common.Solution
 
