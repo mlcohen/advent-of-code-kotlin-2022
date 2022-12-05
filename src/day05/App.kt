@@ -7,7 +7,7 @@ typealias CrateStack = List<Char>
 typealias CrateStacks = List<CrateStack>
 typealias MoveActions = List<MoveAction>
 
-abstract class CreateStackOperator {
+abstract class CrateStackOperator {
     fun apply(crateStacks: CrateStacks, moveAction: MoveAction): CrateStacks {
         val fromStack = crateStacks[moveAction.from]
         val toStack = crateStacks[moveAction.to]
@@ -25,13 +25,13 @@ abstract class CreateStackOperator {
     protected abstract fun pickCratesFromStack(stack: List<Char>, numCrates: Int): List<Char>;
 }
 
-object CreateStackOperator9000: CreateStackOperator() {
+object CrateStackOperator9000: CrateStackOperator() {
     override fun pickCratesFromStack(stack: List<Char>, numCrates: Int): List<Char> {
         return stack.takeLast(numCrates).reversed()
     }
 }
 
-object CreateStackOperator9001: CreateStackOperator() {
+object CrateStackOperator9001: CrateStackOperator() {
     override fun pickCratesFromStack(stack: List<Char>, numCrates: Int): List<Char> {
         return stack.takeLast(numCrates)
     }
@@ -86,7 +86,7 @@ object Day05 : Solution.GroupedLinedInput<ParsedInput>(day = 5) {
         val (crateStacks, moveActions) = input
 
         return moveActions.fold(crateStacks) { currCrateStacks, action ->
-            CreateStackOperator9000.apply(currCrateStacks, action)
+            CrateStackOperator9000.apply(currCrateStacks, action)
         }.map { it.last() }.joinToString(separator = "") { it.toString() }
     }
 
@@ -94,7 +94,7 @@ object Day05 : Solution.GroupedLinedInput<ParsedInput>(day = 5) {
         val (crateStacks, moveActions) = input
 
         return moveActions.fold(crateStacks) { currCrateStacks, action ->
-            CreateStackOperator9001.apply(currCrateStacks, action)
+            CrateStackOperator9001.apply(currCrateStacks, action)
         }.map { it.last() }.joinToString(separator = "") { it.toString() }
     }
 }
