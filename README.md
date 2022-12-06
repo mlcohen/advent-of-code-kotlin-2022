@@ -9,4 +9,4 @@ Solutions in [Kotlin](https://www.kotlinlang.org/)
 | [3](https://adventofcode.com/2022/day/3) | Rucksack Reorganization | [src/day03](src/day03/App.kt)           |
 | [4](https://adventofcode.com/2022/day/4) | Camp Cleanup            | [src/day04](src/day04/App.kt)           |
 | [5](https://adventofcode.com/2022/day/5) | Supply Stacks           | [src/day05](src/day05/solution1/App.kt) |
-| [5](https://adventofcode.com/2022/day/6) | Tuning Trouble          | [src/day05](src/day06/solution1/App.kt) |
+| [6](https://adventofcode.com/2022/day/6) | Tuning Trouble          | [src/day06](src/day06/solution1/App.kt) |
