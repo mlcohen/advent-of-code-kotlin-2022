@@ -11,3 +11,4 @@ Solutions in [Kotlin](https://www.kotlinlang.org/)
 | [5](https://adventofcode.com/2022/day/5) | Supply Stacks           | [src/day05](src/day05/solution1/App.kt) |
 | [6](https://adventofcode.com/2022/day/6) | Tuning Trouble          | [src/day06](src/day06/solution1/App.kt) |
 | [7](https://adventofcode.com/2022/day/7) | No Space Left On Device | [src/day07](src/day07/solution1/App.kt) |
+| [8](https://adventofcode.com/2022/day/8) | Treetop Tree House      | [src/day08](src/day08/solution1/App.kt) |
