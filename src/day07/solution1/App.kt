@@ -1,4 +1,4 @@
-package day07
+package day07.solution1
 
 // Original solution used to solve the AoC day 6 puzzle. Warts and all.
 
