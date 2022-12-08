@@ -1,6 +1,6 @@
 package day07.solution1
 
-// Original solution used to solve the AoC day 6 puzzle. Warts and all.
+// Original solution used to solve the AoC day 7 puzzle. Warts and all.
 
 import common.Solution
 
