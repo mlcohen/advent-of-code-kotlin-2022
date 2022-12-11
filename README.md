@@ -14,3 +14,4 @@ Solutions in [Kotlin](https://www.kotlinlang.org/)
 | [8](https://adventofcode.com/2022/day/8)   | Treetop Tree House      | [src/day08](src/day08/solution1/App.kt) |
 | [9](https://adventofcode.com/2022/day/9)   | Rope Bridge             | [src/day09](src/day09/solution1/App.kt) |
 | [10](https://adventofcode.com/2022/day/10) | Cathode-Ray Tube        | [src/day10](src/day10/solution1/App.kt) |
+| [11](https://adventofcode.com/2022/day/11) | Monkey in the Middle    | [src/day11](src/day11/solution1/App.kt) |
