@@ -178,7 +178,7 @@ object Day11 : Solution.GroupedLinedInput<ParsedInput>(day = 11) {
         }
 
         val sim = MonkeyKeepAwaySimulation(monkeyInspectionDelegate)
-        val result = sim.simulate(monkeys, 20)
+        val result = sim.simulate(monkeys, 10_000)
 
 //        result.printRoundOutcomeDetails()
 //        result.printTalliedInspectionDetails()
