@@ -1,8 +1,9 @@
-package day12
+package day12.solution1
 
 // Original solution used to solve the AoC day 12 puzzle. Warts and all.
 
 import common.Solution
+import kotlin.math.abs
 
 val HEIGHT_VALUES = ('a'..'z').toList().associate { (it to (it.code - 'a'.code + 1)) }
 
@@ -11,7 +12,18 @@ data class Point(val row: Int, val col: Int) {
     operator fun plus(offset: Offset): Point {
         return Point(this.row + offset.row, this.col + offset.col)
     }
+    operator fun plus(direction: Direction): Point {
+        return this + direction.offset
+    }
+    fun manhattanDistanceTo(p: Point): Int {
+        val rowLength = abs(this.row - p.row)
+        val colLength = abs(this.col - p.col)
+        return rowLength + colLength
+    }
     override fun toString(): String = "(${row}, ${col})"
+    companion object {
+        val ZERO: Point = Point(0, 0)
+    }
 }
 
 enum class Direction(val offset: Offset) {
@@ -24,20 +36,8 @@ enum class Direction(val offset: Offset) {
 data class Grid(val values: List<List<Int>>) {
     val width: Int get() = this.values.first().size
     val height: Int get() = this.values.size
-    fun map(fn: (row: Int, col: Int, value: Int) -> Int): Grid {
-        val values = this.values.mapIndexed { rowIdx, row ->
-            row.mapIndexed { colIdx, value ->  fn(rowIdx, colIdx, value) }
-        }
-        return Grid(values = values)
-    }
     operator fun get(p: Point): Int  = this.values[p.row][p.col]
     operator fun get(row: Int, col: Int): Int  = this.values[row][col]
-    operator fun set(p: Point, value: Int): Unit {
-        this.map { r, c, v -> if (p.row == r && p.col == c) value else v }
-    }
-    operator fun set(row: Int, col: Int, value: Int): Unit {
-        this.map { r, c, v -> if (row == r && col == c) value else v }
-    }
     operator fun contains(p: Point): Boolean
         = (p.col in 0 until this.width) && (p.row in 0 until this.height)
     fun prettyPrint() {
@@ -60,69 +60,69 @@ fun createMutableGrid(width: Int, height: Int): MutableGrid {
 }
 
 typealias Path = List<Point>
-typealias TravelCost = Int
-typealias FindMinPathResult = Pair<Path, TravelCost>
 
 object TraverseGrid {
     fun findMinPath(heightGrid: Grid, startPos: Point, endPos: Point): Path {
-        val stepToCache = mutableMapOf<Point, FindMinPathResult>()
+        fun h(p: Point): Int = p.manhattanDistanceTo(endPos)
 
-        fun stepTo(
-            p: Point,
-            travelledPoints: Set<Point>,
-            indent: Int = 0
-        ): FindMinPathResult {
-            if (p == endPos) {
-                return (listOf(endPos) to 0)
+        var openNodes = mutableSetOf(startPos)
+        val cameFrom = mutableMapOf<Point, Point>()
+        val gScore = mutableMapOf(startPos to 0)
+        val fScore = mutableMapOf(startPos to h(startPos))
+
+        fun reconstructPath(current: Point): Path {
+            val path = mutableListOf(current)
+            var next = current
+            while (next in cameFrom) {
+                next = cameFrom[next]!!
+                path.add(next)
+            }
+            return path.toList().reversed()
+        }
+
+        while (openNodes.isNotEmpty()) {
+            val current = openNodes.minByOrNull { fScore[it]!! }!!
+
+            if (current == endPos) {
+                return reconstructPath(current)
             }
 
-            if (p in stepToCache) {
-                val cachedResult = stepToCache[p]!!
-                return stepToCache[p]!!
-            }
-
-            var minPath: Path = listOf()
-            var minTravelCost: TravelCost = -1
+            openNodes.remove(current)
 
             for (direction in Direction.values()) {
-                val nextPoint = p + direction.offset
+                val neighbour = current + direction
 
-                if (nextPoint !in heightGrid || nextPoint in travelledPoints) {
+                if (neighbour !in heightGrid) {
                     continue
                 }
 
-                val heightDiff = heightGrid[nextPoint] - heightGrid[p]
+                val heightDiff = heightGrid[neighbour] - heightGrid[current]
 
                 if (heightDiff > 1) {
                     continue
                 }
 
                 val stepCost = when (heightDiff) {
-                    1 -> 2
-                    else -> 1
+                    1 -> 1
+                    0 -> 2
+                    else -> 3
                 }
 
-                val (path, travelCost) = stepTo(nextPoint, travelledPoints + nextPoint, indent + 4)
-                val thisPath = listOf(p) + path
-                val thisTravelCost = travelCost + stepCost
-                if (thisPath.last() != endPos || travelCost == -1) {
-                    continue
-                }
+                val tentativeGScore = gScore[current]?.let { it + stepCost } ?: Int.MAX_VALUE
+                val neighborGScore = gScore[neighbour] ?: Int.MAX_VALUE
 
-                if (minTravelCost == -1 || thisTravelCost < minTravelCost) {
-                    minPath = thisPath
-                    minTravelCost = thisTravelCost
+                if (tentativeGScore < neighborGScore) {
+                    cameFrom[neighbour] = current
+                    gScore[neighbour] = tentativeGScore
+                    fScore[neighbour] = tentativeGScore + h(neighbour)
+                    if (neighbour !in openNodes) {
+                        openNodes += neighbour
+                    }
                 }
             }
-
-            val result = (minPath to minTravelCost)
-
-            stepToCache[p] = result
-
-            return (minPath to minTravelCost)
         }
 
-        return stepTo(startPos, setOf(startPos)).first
+        return listOf()
     }
 }
 
@@ -154,14 +154,8 @@ object Day12 : Solution.LinedInput<ParsedInput>(day = 12) {
 
     override fun part1(input: ParsedInput): Any {
         val (grid, startPos, endPos) = input
-        println(startPos)
-        println(endPos)
-        grid.prettyPrint()
         val result = TraverseGrid.findMinPath(grid, startPos, endPos)
-        println(result)
-        println(result.size)
-
-        return Unit
+        return result.size - 1
     }
 
     override fun part2(input: ParsedInput): Any {
