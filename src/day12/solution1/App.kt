@@ -133,8 +133,15 @@ object Day12 : Solution.LinedInput<ParsedInput>(day = 12) {
     }
 
     override fun part2(input: ParsedInput): Any {
-//        val (grid, startPos, endPos) = input
-        return Unit
+        val (elevations, _, endPos) = input
+
+        val minPath = elevations
+            .filterValues { it == 'a' }
+            .map { (startPos, _) -> TraverseGrid.findMinPath(elevations, startPos, endPos) }
+            .filter { it.isNotEmpty() }
+            .minBy { it.size - 1 }
+
+        return minPath.size - 1
     }
 }
 
