@@ -68,7 +68,7 @@ enum class PacketPairOrderCompareResult {
     SAME,
 }
 
-class PacketPairOrderComparitor {
+class PacketComparitor {
 
     fun compare(left: PacketData, right: PacketData, depth: Int = 0): PacketPairOrderCompareResult {
         return when {
@@ -134,7 +134,7 @@ object Day13 : Solution.GroupedLinedInput<ParsedInput>(day = 13) {
     }
 
     override fun part1(input: ParsedInput): Any {
-        val comparitor = PacketPairOrderComparitor()
+        val comparitor = PacketComparitor()
 
         val result = input.map {
             val (left, right) = it
@@ -142,12 +142,12 @@ object Day13 : Solution.GroupedLinedInput<ParsedInput>(day = 13) {
             (it to result)
         }
 
-        result.forEach { (pair, result) ->
-            println(pair.first)
-            println(pair.second)
-            println("result = $result")
-            println()
-        }
+//        result.forEach { (pair, result) ->
+//            println(pair.first)
+//            println(pair.second)
+//            println("result = $result")
+//            println()
+//        }
 
         val sum = result.foldIndexed(0) { idx, sum, value ->
             sum + if (value.second == PacketPairOrderCompareResult.CORRECT_ORDER) {
@@ -161,7 +161,24 @@ object Day13 : Solution.GroupedLinedInput<ParsedInput>(day = 13) {
     }
 
     override fun part2(input: ParsedInput): Any {
-        return Unit
+        val divider1 = PacketDataStringParser.parse("[[2]]")
+        val divider2 = PacketDataStringParser.parse("[[6]]")
+        val dividerPair = (divider1 to divider2)
+        val packets = (input + dividerPair).map { (a, b) -> listOf(a, b) }.flatten()
+        val comparitor = PacketComparitor()
+
+        val orderedPackets = packets.sortedWith { left: PacketData, right: PacketData ->
+            when (val outcome = comparitor.compare(left, right)) {
+                PacketPairOrderCompareResult.CORRECT_ORDER -> -1
+                PacketPairOrderCompareResult.INCORRECT_ORDER -> 1
+                else -> 0
+            }
+        }
+
+        val divider1Idx = orderedPackets.indexOf(divider1) + 1
+        val divider2Idx = orderedPackets.indexOf(divider2) + 1
+
+        return divider1Idx * divider2Idx
     }
 }
 
