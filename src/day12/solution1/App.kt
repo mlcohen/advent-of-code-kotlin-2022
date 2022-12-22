@@ -21,9 +21,6 @@ data class Point(val row: Int, val col: Int) {
         return rowLength + colLength
     }
     override fun toString(): String = "(${row}, ${col})"
-    companion object {
-        val ZERO: Point = Point(0, 0)
-    }
 }
 
 enum class Direction(val offset: Offset) {
@@ -33,36 +30,11 @@ enum class Direction(val offset: Offset) {
     RIGHT(Offset(0, 1)),
 }
 
-data class Grid(val values: List<List<Int>>) {
-    val width: Int get() = this.values.first().size
-    val height: Int get() = this.values.size
-    operator fun get(p: Point): Int  = this.values[p.row][p.col]
-    operator fun get(row: Int, col: Int): Int  = this.values[row][col]
-    operator fun contains(p: Point): Boolean
-        = (p.col in 0 until this.width) && (p.row in 0 until this.height)
-    fun prettyPrint() {
-        this.values.forEach { line ->
-            val s = line.joinToString(" ") { it.toString().padStart(2, ' ') }
-            println(s)
-        }
-    }
-}
-
-typealias MutableGrid = MutableList<MutableList<Int>>
-
-fun MutableGrid.toGrid(): Grid {
-    val values = this.map { it.toList() }.toList()
-    return Grid(values)
-}
-
-fun createMutableGrid(width: Int, height: Int): MutableGrid {
-    return MutableList(height) { MutableList(width) { 0 } }
-}
-
+typealias ElevationMap = Map<Point, Char>
 typealias Path = List<Point>
 
 object TraverseGrid {
-    fun findMinPath(heightGrid: Grid, startPos: Point, endPos: Point): Path {
+    fun findMinPath(elevations: ElevationMap, startPos: Point, endPos: Point): Path {
         fun h(p: Point): Int = p.manhattanDistanceTo(endPos)
 
         var openNodes = mutableSetOf(startPos)
@@ -92,17 +64,19 @@ object TraverseGrid {
             for (direction in Direction.values()) {
                 val neighbour = current + direction
 
-                if (neighbour !in heightGrid) {
+                if (neighbour !in elevations) {
                     continue
                 }
 
-                val heightDiff = heightGrid[neighbour] - heightGrid[current]
+                val elevationCurrent = HEIGHT_VALUES[elevations[current]]!!
+                val elevationNeighbor = HEIGHT_VALUES[elevations[neighbour]]!!
+                val elevationDiff = elevationNeighbor - elevationCurrent
 
-                if (heightDiff > 1) {
+                if (elevationDiff > 1) {
                     continue
                 }
 
-                val stepCost = when (heightDiff) {
+                val stepCost = when (elevationDiff) {
                     1 -> 1
                     0 -> 2
                     else -> 3
@@ -126,39 +100,40 @@ object TraverseGrid {
     }
 }
 
-typealias ParsedInput = Triple<Grid, Point, Point>
+typealias ParsedInput = Triple<ElevationMap, Point, Point>
 
 object Day12 : Solution.LinedInput<ParsedInput>(day = 12) {
 
     override fun parseInput(input: List<String>): ParsedInput {
         var startPos = Point(0, 0)
         var endPos = Point(0, 0)
-        val grid = createMutableGrid(width = input.first().length, height = input.size)
+        val elevations = mutableMapOf<Point, Char>()
 
         input.forEachIndexed { rowIdx, line ->
             line.forEachIndexed { colIdx, ch -> when (ch) {
                 'S' -> {
                     startPos = Point(rowIdx, colIdx)
-                    grid[rowIdx][colIdx] = HEIGHT_VALUES['a']!!
+                    elevations[startPos] = 'a'
                 }
                 'E' -> {
                     endPos = Point(rowIdx, colIdx)
-                    grid[rowIdx][colIdx] = HEIGHT_VALUES['z']!!
+                    elevations[endPos] = 'z'
                 }
-                else -> grid[rowIdx][colIdx] = HEIGHT_VALUES[ch]!!
+                else -> elevations[Point(rowIdx, colIdx)] = ch
             } }
         }
 
-        return Triple(grid.toGrid(), startPos, endPos)
+        return Triple(elevations.toMap(), startPos, endPos)
     }
 
     override fun part1(input: ParsedInput): Any {
-        val (grid, startPos, endPos) = input
-        val result = TraverseGrid.findMinPath(grid, startPos, endPos)
+        val (elevations, startPos, endPos) = input
+        val result = TraverseGrid.findMinPath(elevations, startPos, endPos)
         return result.size - 1
     }
 
     override fun part2(input: ParsedInput): Any {
+//        val (grid, startPos, endPos) = input
         return Unit
     }
 }
