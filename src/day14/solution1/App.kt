@@ -142,7 +142,7 @@ object GridPrettyPrinter {
                     PlotType.VOID_SAND -> '~'
                     else -> '.'
                 }
-            }.joinToString(" ")
+            }.joinToString("")
             println(s)
         }
     }
