@@ -1,6 +1,6 @@
 package day14.solution1
 
-// Original solution used to solve the AoC day 14 puzzle. Warts and all.
+// Original solution used to solve the AoC day 14 puzzle.
 
 import common.Solution
 import kotlin.math.max
@@ -31,14 +31,6 @@ data class Point(val x: Int, val y: Int) {
         return this + direction.offset
     }
     override fun toString(): String = "($x, $y)"
-}
-
-enum class PlotType {
-    SAND_EMITTER,
-    ROCK,
-    STILL_SAND,
-    FALLING_SAND,
-    VOID_SAND,
 }
 
 class Grid<T>(
@@ -72,6 +64,23 @@ class Grid<T>(
         data[Point(x, y)] = value
     }
 
+    fun setPoints(pts: List<Point>, value: T) {
+        pts.forEach { this[it] = value }
+    }
+
+    fun setLineSegment(from_: Point, to_: Point, value: T) {
+        if (from_.x == to_.x) {
+            for (y in min(from_.y, to_.y)..max(from_.y, to_.y)) {
+                this[from_.x, y] = value
+            }
+        }
+        if (from_.y == to_.y) {
+            for (x in min(from_.x, to_.x)..max(from_.x, to_.x)) {
+                this[x, from_.y] = value
+            }
+        }
+    }
+
     operator fun get(p: Point): T? {
         return data[p]
     }
@@ -102,19 +111,6 @@ class Grid<T>(
         return (p.x >= tl.x && p.x <= br.x) && (p.y <= br.y && p.y >= tl.y)
     }
 
-    fun setPath(from_: Point, to_: Point, value: T) {
-        if (from_.x == to_.x) {
-            for (y in min(from_.y, to_.y)..max(from_.y, to_.y)) {
-                this[from_.x, y] = value
-            }
-        }
-        if (from_.y == to_.y) {
-            for (x in min(from_.x, to_.x)..max(from_.x, to_.x)) {
-                this[x, from_.y] = value
-            }
-        }
-    }
-
     fun forEach(fn: (key: Point, value: T) -> Unit) {
         this.data.forEach(fn)
     }
@@ -128,48 +124,37 @@ class Grid<T>(
     }
 }
 
-object GridPrettyPrinter {
-    fun print(grid: Grid<PlotType>) {
-        val tl = grid.topLeft
-        val br = grid.bottomRight
-        for (y in tl.y..br.y) {
-            val s = (tl.x..br.x).map { x ->
-                when (grid[x, y]) {
-                    PlotType.ROCK -> '#'
-                    PlotType.STILL_SAND -> 'O'
-                    PlotType.SAND_EMITTER -> '+'
-                    PlotType.FALLING_SAND -> '*'
-                    PlotType.VOID_SAND -> '~'
-                    else -> '.'
-                }
-            }.joinToString("")
-            println(s)
-        }
-    }
+enum class CavePlotType {
+    ROCK,
+    FALLING_SAND,
+    SETTLED_SAND,
+    VOID_SAND,
+    SAND_EMITTER,
 }
 
-enum class SandUnitPourState {
-    START,
+typealias Cave = Grid<CavePlotType>
+
+enum class PourSandUnitState {
     FALLING,
     AT_REST,
     VOID,
 }
 
 class PourSandUnitIterator(
-    startPosition: Point,
-    private val grid: Grid<PlotType>,
+    val sandEmitterPosition: Point,
+    private val cave: Cave,
 ) {
-    private var _currentPosition = startPosition
-    private var _state = SandUnitPourState.START
+    private var _currentPosition = sandEmitterPosition
+    private var _state = PourSandUnitState.FALLING
 
     val position: Point get() = this._currentPosition
-    val state: SandUnitPourState get() = this._state
+    val state: PourSandUnitState get() = this._state
 
     fun hasNext(): Boolean {
-        return this._state == SandUnitPourState.START || this._state == SandUnitPourState.FALLING
+        return this._state == PourSandUnitState.FALLING
     }
 
-    fun next(): Pair<Point, SandUnitPourState> {
+    fun next(): Pair<Point, PourSandUnitState> {
         if (!this.hasNext()) {
             return (this.position to this.state)
         }
@@ -183,25 +168,34 @@ class PourSandUnitIterator(
         for (offset in offsets) {
             val nextPosition = this.position + offset
 
-            if (nextPosition !in this.grid) {
+            if (nextPosition !in this.cave) {
                 this._currentPosition = nextPosition
-                this._state = SandUnitPourState.VOID
+                this._state = PourSandUnitState.VOID
                 return (this.position to this.state)
             }
 
-            val plot = this.grid[nextPosition]
-            val blockingPlot = plot == PlotType.STILL_SAND || plot == PlotType.ROCK
+            val plot = this.cave[nextPosition]
+            val blockingPlot = plot == CavePlotType.SETTLED_SAND || plot == CavePlotType.ROCK
 
             if (!blockingPlot) {
                 this._currentPosition = nextPosition
-                this._state = SandUnitPourState.FALLING
+                this._state = PourSandUnitState.FALLING
                 return (this.position to this.state)
             }
         }
 
-        this._state = SandUnitPourState.AT_REST
+        this._state = PourSandUnitState.AT_REST
 
         return (this.position to this.state)
+    }
+
+    fun collectPath(): List<Point> {
+        val path = mutableListOf<Point>()
+        while (this.hasNext()) {
+            val (point) = this.next()
+            path.add(point)
+        }
+        return path.toList()
     }
 }
 
@@ -211,27 +205,27 @@ enum class PourSandSimulationState {
 }
 
 class PourSandSimulationIterator(
-    private val sandEmittingPosition: Point,
-    grid: Grid<PlotType>,
+    val sandEmitterPosition: Point,
+    cave: Cave,
 ) {
     private var _state = PourSandSimulationState.RUNNING
-    private var _grid = grid.copy()
+    private var _cave = cave.copy()
     private var _currentPourSandUnitIterator: PourSandUnitIterator
 
-    val grid: Grid<PlotType> get() = this._grid.copy()
+    val cave: Cave get() = this._cave
     val state: PourSandSimulationState get() = this._state
 
     init {
-        this._currentPourSandUnitIterator = PourSandUnitIterator(sandEmittingPosition, this._grid)
+        this._currentPourSandUnitIterator = PourSandUnitIterator(sandEmitterPosition, this._cave)
     }
 
     fun hasNext(): Boolean {
         return this._state != PourSandSimulationState.FINISHED
     }
 
-    fun next(): Grid<PlotType> {
+    fun next(): Cave {
         if (!hasNext()) {
-            return this._grid.copy()
+            return this._cave.copy()
         }
 
         while (this._currentPourSandUnitIterator.hasNext()) {
@@ -239,55 +233,90 @@ class PourSandSimulationIterator(
         }
 
         when (this._currentPourSandUnitIterator.state) {
-            SandUnitPourState.VOID -> {
+            PourSandUnitState.VOID -> {
                 this._state = PourSandSimulationState.FINISHED
-                this._grid[this._currentPourSandUnitIterator.position] = PlotType.VOID_SAND
             }
-            SandUnitPourState.AT_REST -> {
-                this._grid[this._currentPourSandUnitIterator.position] = PlotType.STILL_SAND
-                this._currentPourSandUnitIterator = PourSandUnitIterator(this.sandEmittingPosition, this._grid)
+            PourSandUnitState.AT_REST -> {
+                this._cave[this._currentPourSandUnitIterator.position] = CavePlotType.SETTLED_SAND
+                this._currentPourSandUnitIterator = PourSandUnitIterator(this.sandEmitterPosition, this._cave)
             }
             else -> throw error("Pour sand unit iterator in unexpected state ${this._currentPourSandUnitIterator.state}")
         }
 
-        return this._grid.copy()
+        return this._cave.copy()
     }
 }
 
-object Day14 : Solution.LinedInput<Grid<PlotType>>(day = 14) {
+class PourSandSimulator(
+    private val sandEmitterPosition: Point,
+    private val cave: Cave,
+) {
+    fun run(): Cave {
+        val iter = PourSandSimulationIterator(sandEmitterPosition, cave)
 
-    override fun parseInput(input: List<String>): Grid<PlotType> {
+        while (iter.hasNext()) {
+            iter.next()
+        }
+
+        return iter.cave
+    }
+}
+
+object CavePrettyPrinter {
+    fun print(cave: Cave) {
+        val tl = cave.topLeft
+        val br = cave.bottomRight
+        for (y in tl.y..br.y) {
+            val s = (tl.x..br.x).map { x ->
+                when (cave[x, y]) {
+                    CavePlotType.ROCK -> '#'
+                    CavePlotType.SETTLED_SAND -> 'O'
+                    CavePlotType.SAND_EMITTER -> '+'
+                    CavePlotType.FALLING_SAND -> '*'
+                    CavePlotType.VOID_SAND -> '~'
+                    else -> '.'
+                }
+            }.joinToString("")
+            println(s)
+        }
+    }
+}
+
+object Day14 : Solution.LinedInput<Cave>(day = 14) {
+
+    override fun parseInput(input: List<String>): Cave {
         val segments = input.map{ line ->
             line.split(" -> ").map {
                 it.split(',').let { (a, b) -> Point(a.toInt(), b.toInt()) }
             }
         }
 
-        val grid = Grid<PlotType>()
-        grid[500, 0] = PlotType.SAND_EMITTER
+        val cave = Cave()
 
         segments.forEach { points ->
-            points.windowed(2) { (a, b) -> grid.setPath(a, b, PlotType.ROCK) }
+            points.windowed(2) { (a, b) -> cave.setLineSegment(a, b, CavePlotType.ROCK) }
         }
 
-        return grid
+        return cave
     }
 
-    override fun part1(grid: Grid<PlotType>): Any {
-        val sandEmitterPoint = Point(500, 0)
-        val iter = PourSandSimulationIterator(sandEmitterPoint, grid)
+    override fun part1(initCave: Cave): Any {
+        val sandEmitterPosition = Point(500, 0)
+        initCave[sandEmitterPosition] = CavePlotType.SAND_EMITTER
+        val simulator = PourSandSimulator(sandEmitterPosition, initCave)
+        val finalCave = simulator.run()
 
-        while (iter.hasNext()) {
-            iter.next()
-        }
+        val sandUnitIter = PourSandUnitIterator(sandEmitterPosition, finalCave)
+        val path = sandUnitIter.collectPath()
+        finalCave.setPoints(path, CavePlotType.VOID_SAND)
 
-        GridPrettyPrinter.print(iter.grid)
+        CavePrettyPrinter.print(finalCave)
         println()
 
-        return iter.grid.toMap().count { (_, plotType) -> plotType == PlotType.STILL_SAND }
+        return finalCave.toMap().count { (_, plotType) -> plotType == CavePlotType.SETTLED_SAND }
     }
 
-    override fun part2(grid: Grid<PlotType>): Any {
+    override fun part2(cave: Cave): Any {
         return Unit
     }
 }
