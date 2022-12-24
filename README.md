@@ -17,3 +17,4 @@ Solutions in [Kotlin](https://www.kotlinlang.org/)
 | [11](https://adventofcode.com/2022/day/11) | Monkey in the Middle    | [src/day11](src/day11/solution1/App.kt) |
 | [12](https://adventofcode.com/2022/day/12) | Hill Climbing Algorithm | [src/day12](src/day12/solution1/App.kt) |
 | [13](https://adventofcode.com/2022/day/13) | Distress Signal         | [src/day13](src/day13/solution1/App.kt) |
+| [14](https://adventofcode.com/2022/day/14) | Regolith Reservoir      | [src/day14](src/day14/solution1/App.kt) |

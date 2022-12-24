@@ -368,8 +368,8 @@ object Day14 : Solution.LinedInput<Cave>(day = 14) {
         val finalCave = simulator.run()
         finalCave[sandEmitterPosition] = CavePlotType.SETTLED_SAND
 
-//        CavePrettyPrinter.print(finalCave)
-//        println()
+        CavePrettyPrinter.print(finalCave)
+        println()
 
         return finalCave.toMap().count { (_, plotType) -> plotType == CavePlotType.SETTLED_SAND }
 
