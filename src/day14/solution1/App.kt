@@ -10,6 +10,10 @@ data class Offset(val x: Int, val y: Int) {
     operator fun plus(offset: Offset): Offset {
         return Offset(this.x + offset.x, this.y + offset.y)
     }
+
+    operator fun times(value: Int): Offset {
+        return Offset(this.x * value, this.y * value)
+    }
 }
 
 enum class Direction(val offset: Offset) {
@@ -20,6 +24,10 @@ enum class Direction(val offset: Offset) {
 
     operator fun plus(direction: Direction): Offset {
         return this.offset + direction.offset
+    }
+
+    operator fun times(value: Int): Offset {
+        return this.offset * value
     }
 }
 
@@ -33,35 +41,54 @@ data class Point(val x: Int, val y: Int) {
     override fun toString(): String = "($x, $y)"
 }
 
+interface GridExtension<T> {
+    fun prepare(grid: Grid<T>);
+    fun get(p: Point, grid: Grid<T>): T?;
+    fun pointIsEmpty(p: Point, grid: Grid<T>): Boolean;
+    fun contains(p: Point, grid: Grid<T>): Boolean;
+}
+
 class Grid<T>(
     private val data: MutableMap<Point, T> = mutableMapOf(),
+    extension: GridExtension<T>? = null,
 ) {
-    val topLeft: Point get() {
-        var minX = -1
-        var minY = -1
-        for (p in data.keys) {
-            minX = if (minX < 0) p.x else min(minX, p.x)
-            minY = if (minY < 0) p.y else min(minY, p.y)
-        }
-        return Point(minX, minY)
-    }
+    private var _extension: GridExtension<T>? = extension
+    private var _topLeft: Point = Point(0, 0)
+    private var _bottomRight: Point = Point(0, 0)
 
-    val bottomRight: Point get() {
-        var maxX = -1
-        var maxY = -1
-        for (p in data.keys) {
-            maxX = if (maxX < 0) p.x else max(maxX, p.x)
-            maxY = if (maxY < 0) p.y else max(maxY, p.y)
+    var extension: GridExtension<T>?
+        get() = this._extension
+        set(value) {
+            this._extension = value
+            value?.prepare(this)
         }
-        return Point(maxX, maxY)
-    }
+
+    val topLeft: Point get() = this._topLeft
+    val bottomRight: Point get() = this._bottomRight
 
     operator fun set(p: Point, value: T) {
-        data[p] = value
+        val pointIsEmptyInExtension = this.extension?.pointIsEmpty(p, this) ?: true
+
+        if (pointIsEmptyInExtension) {
+            if (this.data.isEmpty()) {
+                this._topLeft = p
+                this._bottomRight = p
+            } else {
+                val minX = min(p.x, this._topLeft.x)
+                val minY = min(p.y, this._topLeft.y)
+                val maxX = max(p.x, this._bottomRight.x)
+                val maxY = max(p.y, this._bottomRight.y)
+
+                this._topLeft = Point(minX, minY)
+                this._bottomRight = Point(maxX, maxY)
+            }
+
+            this.data[p] = value
+        }
     }
 
     operator fun set(x: Int, y: Int, value: T) {
-        data[Point(x, y)] = value
+        this[Point(x, y)] = value
     }
 
     fun setPoints(pts: List<Point>, value: T) {
@@ -82,45 +109,31 @@ class Grid<T>(
     }
 
     operator fun get(p: Point): T? {
-        return data[p]
+        if (data.containsKey(p)) {
+            return data[p]
+        }
+
+        return this.extension?.get(p, this)
     }
 
     operator fun get(x: Int, y: Int): T? {
-        return data[Point(x, y)]
-    }
-
-    fun pointAssigned(p: Point): Boolean {
-        return data.containsKey(p)
-    }
-
-    fun pointAssigned(x: Int, y: Int): Boolean {
-        return pointAssigned(Point(x, y))
-    }
-
-    fun pointNotAssigned(p: Point): Boolean {
-        return !pointAssigned(p)
-    }
-
-    fun pointNotAssigned(x: Int, y: Int): Boolean {
-        return !pointAssigned(x, y)
+        return this[Point(x, y)]
     }
 
     operator fun contains(p: Point): Boolean {
         val tl = this.topLeft
         val br = this.bottomRight
-        return (p.x >= tl.x && p.x <= br.x) && (p.y <= br.y && p.y >= tl.y)
-    }
+        val contained = (p.x >= tl.x && p.x <= br.x) && (p.y <= br.y && p.y >= tl.y)
 
-    fun forEach(fn: (key: Point, value: T) -> Unit) {
-        this.data.forEach(fn)
+        if (!contained) {
+            return this.extension?.contains(p, this) ?: false
+        }
+
+        return true
     }
 
     fun toMap(): Map<Point, T> {
         return this.data.toMap()
-    }
-
-    fun copy(): Grid<T> {
-        return Grid(this.data.toMutableMap())
     }
 }
 
@@ -209,7 +222,7 @@ class PourSandSimulationIterator(
     cave: Cave,
 ) {
     private var _state = PourSandSimulationState.RUNNING
-    private var _cave = cave.copy()
+    private var _cave = cave
     private var _currentPourSandUnitIterator: PourSandUnitIterator
 
     val cave: Cave get() = this._cave
@@ -225,7 +238,7 @@ class PourSandSimulationIterator(
 
     fun next(): Cave {
         if (!hasNext()) {
-            return this._cave.copy()
+            return this._cave
         }
 
         while (this._currentPourSandUnitIterator.hasNext()) {
@@ -237,13 +250,17 @@ class PourSandSimulationIterator(
                 this._state = PourSandSimulationState.FINISHED
             }
             PourSandUnitState.AT_REST -> {
-                this._cave[this._currentPourSandUnitIterator.position] = CavePlotType.SETTLED_SAND
-                this._currentPourSandUnitIterator = PourSandUnitIterator(this.sandEmitterPosition, this._cave)
+                if (this._currentPourSandUnitIterator.position == sandEmitterPosition) {
+                    this._state = PourSandSimulationState.FINISHED
+                } else {
+                    this._cave[this._currentPourSandUnitIterator.position] = CavePlotType.SETTLED_SAND
+                    this._currentPourSandUnitIterator = PourSandUnitIterator(this.sandEmitterPosition, this._cave)
+                }
             }
             else -> throw error("Pour sand unit iterator in unexpected state ${this._currentPourSandUnitIterator.state}")
         }
 
-        return this._cave.copy()
+        return this._cave
     }
 }
 
@@ -264,8 +281,8 @@ class PourSandSimulator(
 
 object CavePrettyPrinter {
     fun print(cave: Cave) {
-        val tl = cave.topLeft
-        val br = cave.bottomRight
+        val tl = cave.topLeft + (Direction.LEFT * 6)
+        val br = cave.bottomRight + (Direction.DOWN * 2) + (Direction.RIGHT * 6)
         for (y in tl.y..br.y) {
             val s = (tl.x..br.x).map { x ->
                 when (cave[x, y]) {
@@ -279,6 +296,31 @@ object CavePrettyPrinter {
             }.joinToString("")
             println(s)
         }
+    }
+}
+
+class InfiniteFloorCaveExtension(
+    private val floorOffset: Int = 2,
+): GridExtension<CavePlotType> {
+    private var floorY: Int = 0
+
+    override fun prepare(grid: Grid<CavePlotType>) {
+        val lowestRockPos = grid.toMap().filter { it.value == CavePlotType.ROCK }.maxBy { it.key.y }.let { it.key }
+        this.floorY = lowestRockPos.y + floorOffset
+    }
+
+    override fun get(p: Point, grid: Grid<CavePlotType>): CavePlotType? {
+        return if (p.y == this.floorY) {
+            CavePlotType.ROCK
+        } else null
+    }
+
+    override fun contains(p: Point, grid: Grid<CavePlotType>): Boolean {
+        return p.y <= this.floorY
+    }
+
+    override fun pointIsEmpty(p: Point, grid: Grid<CavePlotType>): Boolean {
+        return p.y != this.floorY
     }
 }
 
@@ -310,14 +352,27 @@ object Day14 : Solution.LinedInput<Cave>(day = 14) {
         val path = sandUnitIter.collectPath()
         finalCave.setPoints(path, CavePlotType.VOID_SAND)
 
-        CavePrettyPrinter.print(finalCave)
-        println()
+//        CavePrettyPrinter.print(finalCave)
+//        println()
 
         return finalCave.toMap().count { (_, plotType) -> plotType == CavePlotType.SETTLED_SAND }
+        return Unit
     }
 
-    override fun part2(cave: Cave): Any {
-        return Unit
+    override fun part2(initCave: Cave): Any {
+        val sandEmitterPosition = Point(500, 0)
+        initCave[sandEmitterPosition] = CavePlotType.SAND_EMITTER
+        initCave.extension = InfiniteFloorCaveExtension()
+
+        val simulator = PourSandSimulator(sandEmitterPosition, initCave)
+        val finalCave = simulator.run()
+        finalCave[sandEmitterPosition] = CavePlotType.SETTLED_SAND
+
+//        CavePrettyPrinter.print(finalCave)
+//        println()
+
+        return finalCave.toMap().count { (_, plotType) -> plotType == CavePlotType.SETTLED_SAND }
+
     }
 }
 
