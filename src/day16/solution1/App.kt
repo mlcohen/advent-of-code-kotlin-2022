@@ -21,13 +21,6 @@ fun StepsTaken.pressureRelease(maxTime: Int): Int {
         .sumOf { (maxTime - it.time) * it.valve.flowRate }
 }
 
-fun StepsTaken.openValves(): List<String> {
-    return this
-        .filter { it.action == Action.OPENED_VALVE }
-        .map { it.valve.label }
-        .sorted()
-}
-
 typealias TraverseCacheKey = Triple<String, Int, List<String>>
 typealias TraverseCacheMap = MutableMap<TraverseCacheKey, StepsTaken>
 
