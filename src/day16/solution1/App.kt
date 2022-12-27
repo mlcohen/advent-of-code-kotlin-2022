@@ -3,6 +3,9 @@ package day16
 // Original solution used to solve the AoC day 16 puzzle
 
 import common.Solution
+import kotlin.concurrent.timerTask
+import kotlin.math.max
+import kotlin.math.pow
 
 data class Valve(val label: String, val flowRate: Int, val tunnels: List<String>)
 
@@ -27,9 +30,13 @@ typealias TraverseCacheMap = MutableMap<TraverseCacheKey, StepsTaken>
 class TraverseValves(
     private val valves: ValveList,
     private val maxTime: Int,
+    private val skipValves: Set<String> = setOf(),
 ) {
     private val graph: ValveGraph = valves.associateBy { it.label }
-    private val workingValves: Set<String> = valves.filter { it.flowRate > 0 }.map { it.label }.toSet()
+    private val workingValves: Set<String> = valves
+        .filter { it.flowRate > 0 }
+        .map { it.label }
+        .toSet()
     private val cache: TraverseCacheMap = mutableMapOf()
 
     fun traverse(): StepsTaken {
@@ -61,19 +68,15 @@ class TraverseValves(
             return cache[cacheKey]!!
         }
 
-        val results = mutableListOf<StepsTaken>()
-        if (valve.flowRate > 0) {
-            val openValveResult = openValve(
-                valve,
-                time, openedValves, traversalValveCounters
-            )
-            results.add(openValveResult)
-        }
+        val openValveResult = openValve(
+            valve,
+            time, openedValves, traversalValveCounters
+        )
+
         val moveToValveResult = moveToConnectedValves(valve,
             time, openedValves, traversalValveCounters)
-        results.add(moveToValveResult)
 
-        val bestResult = results.maxBy { it.pressureRelease(maxTime) }
+        val bestResult = listOf(openValveResult, moveToValveResult).maxBy { it.pressureRelease(maxTime) }
 
         cache[cacheKey] = bestResult
 
@@ -86,7 +89,7 @@ class TraverseValves(
         openedValves: Set<String>,
         traversalValveCounters: Map<String, Int>,
     ): StepsTaken {
-        if (valve.label in openedValves) {
+        if (valve.label in openedValves || valve.flowRate == 0 || valve.label in skipValves) {
             return listOf()
         }
 //        println("You open valve ${valve.label}")
@@ -110,6 +113,10 @@ class TraverseValves(
         val outcomes = mutableListOf<StepsTaken>()
 
         for (nextValveLabel in valve.tunnels) {
+            if (nextValveLabel in skipValves) {
+                continue
+            }
+
             val nextValve = graph[nextValveLabel]!!
             val outcome = moveToValve(nextValve,
                 time = time,
@@ -168,17 +175,92 @@ object Day16 : Solution.LinedInput<ValveList>(day = 16) {
     }
 
     override fun part1(input: ValveList): Any {
-        val traverser = TraverseValves(input, 30)
-        val result = traverser.traverse()
-
-        result.forEach {
-            println("Minute ${it.time}: valve = ${it.valve.label}, action = ${it.action}")
-        }
-
-        return result.pressureRelease(30)
+//        val traverser = TraverseValves(input, 30)
+//        val result = traverser.traverse()
+//
+//        result.forEach {
+//            println("Minute ${it.time}: valve = ${it.valve.label}, action = ${it.action}")
+//        }
+//
+//        return result.pressureRelease(30)
+        return Unit
     }
 
     override fun part2(input: ValveList): Any {
+        fun shortestPaths(source: String, graph: ValveGraph): Pair<Map<String, Int>, Map<String, String>> {
+            val dist = graph.keys.associate { it to Int.MAX_VALUE }.toMutableMap()
+            val prev = mutableMapOf<String, String>()
+            val queue = graph.keys.toMutableSet()
+            dist[source] = 0
+
+            while (queue.isNotEmpty()) {
+                val u = queue.minBy { dist[it]!! }
+                queue.remove(u)
+
+                for (v in graph[u]!!.tunnels) {
+                    if (v !in queue) {
+                        continue
+                    }
+                    val alt = dist[u]!! + 1
+                    if (alt < dist[v]!!) {
+                        dist[v] = alt
+                        prev[v] = u
+                    }
+                }
+            }
+
+            return dist.toMap() to prev.toMap()
+        }
+
+//        val graph = input.associateBy { it.label }
+//        val result = shortestPaths("AA", graph)
+
+        val allWorkingValves = input.filter { it.flowRate > 0 }.map { it.label }
+
+        fun filterValves(v: Int): Set<String> {
+            val l = mutableListOf<String>()
+            for (i in 0 until allWorkingValves.size) {
+                val o = 0x0001 shl i and v
+                if (o > 0) {
+                    l.add(allWorkingValves[i])
+                }
+            }
+            return l.toSet()
+        }
+
+        val outcomes = mutableListOf<Triple<Int, Set<String>, Set<String>>>()
+        val maxPermuations = (2.0.pow(allWorkingValves.size).toInt() / 2)
+        for (i in 1 until maxPermuations) {
+            val skipValves = filterValves(i)
+            val youSkipValves = skipValves
+            val elephantSkipValves = allWorkingValves.toSet() - skipValves
+            if (i % 100 == 0) {
+                print("Attempt $i: ")
+            }
+//            println("... you skip $youSkipValves")
+//            println("... elephant skip $elephantSkipValves")
+            val youTraverser = TraverseValves(input, 26, youSkipValves)
+            val elephantTraverser = TraverseValves(input, 26, elephantSkipValves)
+            val youStepsTaken = youTraverser.traverse()
+            val elephantStepsTaken = elephantTraverser.traverse()
+//            println("OUTCOME FOR: Y = ${youSkipValves}, E = ${elephantSkipValves}")
+            val ypr = youStepsTaken.pressureRelease(26)
+            val epr = elephantStepsTaken.pressureRelease(26)
+            val tpr = ypr + epr
+            if (i % 100 == 0) {
+                println("total pressure release = $tpr")
+            }
+            outcomes.add(Triple(tpr, youSkipValves, elephantSkipValves))
+        }
+        println()
+
+        val sortedOutcomes = outcomes.sortedBy { it.first }
+
+        println("# OUTCOMES = ${outcomes.size}")
+        println("BEST OUTCOME = ${sortedOutcomes.last().first}")
+        println("... you covered valves ${allWorkingValves - sortedOutcomes.last().second}")
+        println("... elephant covered valves ${allWorkingValves - sortedOutcomes.last().third}")
+
         return Unit
     }
 }
