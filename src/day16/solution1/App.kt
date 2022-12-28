@@ -138,7 +138,8 @@ class TraverseValves(
             }
 
             val toValve = graph[toValveLabel]!!
-            val outcome = moveToValve(toValve, nextTime, openedValves)
+            val stepTaken = StepTaken(Action.MOVED_TO_VALVE, toValve, nextTime)
+            val outcome = listOf(stepTaken) + takeNextStep(toValve, nextTime, openedValves)
 
             outcomes.add(outcome)
         }
@@ -148,16 +149,6 @@ class TraverseValves(
         }
 
         return outcomes.maxBy { it.pressureRelease(maxTime) }
-    }
-
-    fun moveToValve(
-        valve: Valve,
-        time: Int,
-        openedValves: Set<String>,
-    ): StepsTaken {
-        val stepTaken = StepTaken(Action.MOVED_TO_VALVE, valve, time)
-
-        return listOf(stepTaken) + takeNextStep(valve, time, openedValves)
     }
 
 }
@@ -232,5 +223,5 @@ object Day16 : Solution.LinedInput<ValveList>(day = 16) {
 }
 
 fun main() {
-    Day16.solve(test = false)
+    Day16.solve(test = true)
 }
