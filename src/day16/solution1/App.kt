@@ -3,11 +3,10 @@ package day16
 // Original solution used to solve the AoC day 16 puzzle
 
 import common.Solution
-import kotlin.concurrent.timerTask
-import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 
-data class Valve(val label: String, val flowRate: Int, val tunnels: List<String>)
+data class Valve(val label: String, val flowRate: Int, val tunnels: Set<String>)
 
 typealias ValveList = List<Valve>
 typealias ValveGraph = Map<String, Valve>
@@ -24,28 +23,55 @@ fun StepsTaken.pressureRelease(maxTime: Int): Int {
         .sumOf { (maxTime - it.time) * it.valve.flowRate }
 }
 
+fun shortestPaths(g: ValveGraph): Map<String, Map<String, Int>> {
+    val INF = Int.MAX_VALUE
+    val dist = g.keys.map { p ->
+        g[p]!!.tunnels.map { q -> p to q }
+    }.flatten().associateWith { 1 }.toMutableMap()
+    val nodes = g.keys
+
+    for (r in nodes) {
+        for (p in nodes) {
+            for (q in nodes) {
+                val dpq = dist[p to q] ?: INF
+                val dpr = dist[p to r] ?: INF
+                val drq = dist[r to q] ?: INF
+                val dprq = if (dpr == INF || drq == INF) INF else dpr + drq
+                dist[p to q] = min(dpq, dprq)
+            }
+        }
+    }
+
+    return dist
+        .filter { it.value != INF }
+        .filter { it.key.first != it.key.second }
+        .toList()
+        .groupBy { (k, _) -> k.first }
+        .mapValues { (_, v) -> v.associate { it.first.second to it.second } }
+        .toMap()
+}
+
 typealias TraverseCacheKey = Triple<String, Int, List<String>>
 typealias TraverseCacheMap = MutableMap<TraverseCacheKey, StepsTaken>
 
 class TraverseValves(
     private val valves: ValveList,
     private val maxTime: Int,
-    private val skipValves: Set<String> = setOf(),
 ) {
     private val graph: ValveGraph = valves.associateBy { it.label }
-    private val workingValves: Set<String> = valves
-        .filter { it.flowRate > 0 }
-        .map { it.label }
-        .toSet()
-    private val cache: TraverseCacheMap = mutableMapOf()
+    private val workingValves: Set<String> = valves.filter { it.flowRate > 0 }.map { it.label }.toSet()
+    private val nodes: Set<String> = this.workingValves + "AA"
+    private val edges: Map<String, Map<String, Int>> = shortestPaths(graph)
+        .filter { (k) -> k in this.nodes }
+        .mapValues { (_, v) -> v.filter { it.key in this.nodes } }
+    private var skipValves: Set<String> = setOf()
+    private var cache: TraverseCacheMap = mutableMapOf()
 
-    fun traverse(): StepsTaken {
+    fun traverse(skipValves: Set<String> = setOf()): StepsTaken {
+        this.skipValves = skipValves
+        this.cache = mutableMapOf()
         val openedValves = setOf<String>()
-        val traversalValveCounters = valves.associate { it.label to it.tunnels.size }
-        val result = takeNextStep(graph["AA"]!!,
-            openedValves = openedValves,
-            traversalValveCounters = traversalValveCounters,
-        )
+        val result = takeNextStep(graph["AA"]!!, 0 , openedValves)
         return result
     }
 
@@ -53,11 +79,10 @@ class TraverseValves(
         valve: Valve,
         time: Int = 0,
         openedValves: Set<String>,
-        traversalValveCounters: Map<String, Int>,
     ): StepsTaken {
 //        println("== Minute $time: At valve ${valve.label} ==")
 
-        if (openedValves.size == workingValves.size || time == maxTime) {
+        if (openedValves.size == workingValves.size || time >= maxTime) {
             return listOf()
         }
 
@@ -68,14 +93,8 @@ class TraverseValves(
             return cache[cacheKey]!!
         }
 
-        val openValveResult = openValve(
-            valve,
-            time, openedValves, traversalValveCounters
-        )
-
-        val moveToValveResult = moveToConnectedValves(valve,
-            time, openedValves, traversalValveCounters)
-
+        val openValveResult = openValve(valve, time, openedValves)
+        val moveToValveResult = moveToConnectedValves(valve, time, openedValves)
         val bestResult = listOf(openValveResult, moveToValveResult).maxBy { it.pressureRelease(maxTime) }
 
         cache[cacheKey] = bestResult
@@ -87,7 +106,6 @@ class TraverseValves(
         valve: Valve,
         time: Int,
         openedValves: Set<String>,
-        traversalValveCounters: Map<String, Int>,
     ): StepsTaken {
         if (valve.label in openedValves || valve.flowRate == 0 || valve.label in skipValves) {
             return listOf()
@@ -97,32 +115,30 @@ class TraverseValves(
         val nextOpenedValves = openedValves + valve.label
         val stepTaken = StepTaken(Action.OPENED_VALVE, valve, nextTime)
 
-        return listOf(stepTaken) + takeNextStep(valve,
-            nextTime,
-            nextOpenedValves,
-            traversalValveCounters,
-        )
+        return listOf(stepTaken) + takeNextStep(valve, nextTime, nextOpenedValves,)
     }
 
     fun moveToConnectedValves(
         valve: Valve,
         time: Int,
         openedValves: Set<String>,
-        traversalValveCounters: Map<String, Int>,
     ): StepsTaken {
         val outcomes = mutableListOf<StepsTaken>()
 
-        for (nextValveLabel in valve.tunnels) {
-            if (nextValveLabel in skipValves) {
+        for (edge in this.edges[valve.label]!!) {
+            val (toValveLabel, distance) = edge
+            val nextTime = time + distance
+
+            if (toValveLabel in skipValves) {
                 continue
             }
 
-            val nextValve = graph[nextValveLabel]!!
-            val outcome = moveToValve(nextValve,
-                time = time,
-                openedValves = openedValves,
-                traversalValveCounters = traversalValveCounters,
-            )
+            if (nextTime >= this.maxTime) {
+                continue
+            }
+
+            val toValve = graph[toValveLabel]!!
+            val outcome = moveToValve(toValve, nextTime, openedValves)
 
             outcomes.add(outcome)
         }
@@ -138,24 +154,10 @@ class TraverseValves(
         valve: Valve,
         time: Int,
         openedValves: Set<String>,
-        traversalValveCounters: Map<String, Int>,
     ): StepsTaken {
-        val nextValveTraveralCounter = traversalValveCounters[valve.label]!!
+        val stepTaken = StepTaken(Action.MOVED_TO_VALVE, valve, time)
 
-        if (nextValveTraveralCounter == 0) {
-            return listOf()
-        }
-//        println("You move to valve ${valve.label}. counter = $nextValveTraveralCounter")
-
-        val nextTime = time + 1
-        val stepTaken = StepTaken(Action.MOVED_TO_VALVE, valve, nextTime)
-        val nextTraversalValveCounts = traversalValveCounters + (valve.label to nextValveTraveralCounter - 1)
-
-        return listOf(stepTaken) + takeNextStep(valve,
-            time = nextTime,
-            openedValves = openedValves,
-            traversalValveCounters = nextTraversalValveCounts,
-        )
+        return listOf(stepTaken) + takeNextStep(valve, time, openedValves)
     }
 
 }
@@ -168,7 +170,7 @@ object Day16 : Solution.LinedInput<ValveList>(day = 16) {
                 val left = a.split(' ', '=')
                     .let { tokens -> (tokens[1] to tokens.last().toInt()) }
                 val right = b.trim().split(' ', ',')
-                    .let { tokens -> tokens.drop(4).filter(String::isNotEmpty) }
+                    .let { tokens -> tokens.drop(4).filter(String::isNotEmpty).toSet() }
                 Valve(left.first, left.second, right)
             }
         }
@@ -187,34 +189,6 @@ object Day16 : Solution.LinedInput<ValveList>(day = 16) {
     }
 
     override fun part2(input: ValveList): Any {
-        fun shortestPaths(source: String, graph: ValveGraph): Pair<Map<String, Int>, Map<String, String>> {
-            val dist = graph.keys.associate { it to Int.MAX_VALUE }.toMutableMap()
-            val prev = mutableMapOf<String, String>()
-            val queue = graph.keys.toMutableSet()
-            dist[source] = 0
-
-            while (queue.isNotEmpty()) {
-                val u = queue.minBy { dist[it]!! }
-                queue.remove(u)
-
-                for (v in graph[u]!!.tunnels) {
-                    if (v !in queue) {
-                        continue
-                    }
-                    val alt = dist[u]!! + 1
-                    if (alt < dist[v]!!) {
-                        dist[v] = alt
-                        prev[v] = u
-                    }
-                }
-            }
-
-            return dist.toMap() to prev.toMap()
-        }
-
-//        val graph = input.associateBy { it.label }
-//        val result = shortestPaths("AA", graph)
-
         val allWorkingValves = input.filter { it.flowRate > 0 }.map { it.label }
 
         fun filterValves(v: Int): Set<String> {
@@ -228,40 +202,32 @@ object Day16 : Solution.LinedInput<ValveList>(day = 16) {
             return l.toSet()
         }
 
-        val outcomes = mutableListOf<Triple<Int, Set<String>, Set<String>>>()
-        val maxPermuations = (2.0.pow(allWorkingValves.size).toInt() / 2)
+        val youTraverser = TraverseValves(input, 26)
+        val elephantTraverser = TraverseValves(input, 26)
+
+        var bestOutcome: Triple<Int, Set<String>, Set<String>> = Triple(0, setOf(), setOf())
+        val maxPermuations = 2.0.pow(allWorkingValves.size).toInt() / 2
+
         for (i in 1 until maxPermuations) {
             val skipValves = filterValves(i)
             val youSkipValves = skipValves
             val elephantSkipValves = allWorkingValves.toSet() - skipValves
-            if (i % 100 == 0) {
-                print("Attempt $i: ")
-            }
-//            println("... you skip $youSkipValves")
-//            println("... elephant skip $elephantSkipValves")
-            val youTraverser = TraverseValves(input, 26, youSkipValves)
-            val elephantTraverser = TraverseValves(input, 26, elephantSkipValves)
-            val youStepsTaken = youTraverser.traverse()
-            val elephantStepsTaken = elephantTraverser.traverse()
-//            println("OUTCOME FOR: Y = ${youSkipValves}, E = ${elephantSkipValves}")
+            val youStepsTaken = youTraverser.traverse(youSkipValves)
+            val elephantStepsTaken = elephantTraverser.traverse(elephantSkipValves)
             val ypr = youStepsTaken.pressureRelease(26)
             val epr = elephantStepsTaken.pressureRelease(26)
             val tpr = ypr + epr
-            if (i % 100 == 0) {
-                println("total pressure release = $tpr")
+
+            if (tpr > bestOutcome.first) {
+                bestOutcome = Triple(tpr, youSkipValves, elephantSkipValves)
             }
-            outcomes.add(Triple(tpr, youSkipValves, elephantSkipValves))
         }
-        println()
 
-        val sortedOutcomes = outcomes.sortedBy { it.first }
+        println("BEST OUTCOME = ${bestOutcome.first}")
+        println("... you covered valves ${allWorkingValves - bestOutcome.second}")
+        println("... elephant covered valves ${allWorkingValves - bestOutcome.third}")
 
-        println("# OUTCOMES = ${outcomes.size}")
-        println("BEST OUTCOME = ${sortedOutcomes.last().first}")
-        println("... you covered valves ${allWorkingValves - sortedOutcomes.last().second}")
-        println("... elephant covered valves ${allWorkingValves - sortedOutcomes.last().third}")
-
-        return Unit
+        return bestOutcome.first
     }
 }
 
