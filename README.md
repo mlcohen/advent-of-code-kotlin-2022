@@ -19,3 +19,4 @@ Solutions in [Kotlin](https://www.kotlinlang.org/)
 | [13](https://adventofcode.com/2022/day/13) | Distress Signal         | [src/day13](src/day13/solution1/App.kt) |
 | [14](https://adventofcode.com/2022/day/14) | Regolith Reservoir      | [src/day14](src/day14/solution1/App.kt) |
 | [15](https://adventofcode.com/2022/day/15) | Beacon Exclusion Zone   | [src/day15](src/day15/solution1/App.kt) |
+| [16](https://adventofcode.com/2022/day/15) | Proboscidea Volcanium   | [src/day16](src/day16/solution1/App.kt) |
