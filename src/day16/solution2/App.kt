@@ -1,8 +1,9 @@
-package day16.solution1 
+package day16.solution2
 
-// Original solution used to solve the AoC day 16 puzzle
+// Refactored original solution. Attempt to improve performance.
 
 import common.Solution
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 
@@ -10,18 +11,6 @@ data class Valve(val label: String, val flowRate: Int, val tunnels: Set<String>)
 
 typealias ValveList = List<Valve>
 typealias ValveGraph = Map<String, Valve>
-
-enum class Action { OPENED_VALVE, MOVED_TO_VALVE }
-
-data class StepTaken(val action: Action, val valve: Valve, val time: Int)
-
-typealias StepsTaken = List<StepTaken>
-
-fun StepsTaken.pressureRelease(maxTime: Int): Int {
-    return this
-        .filter { it.action == Action.OPENED_VALVE }
-        .sumOf { (maxTime - it.time) * it.valve.flowRate }
-}
 
 fun shortestPaths(g: ValveGraph): Map<String, Map<String, Int>> {
     val INF = Int.MAX_VALUE
@@ -52,10 +41,10 @@ fun shortestPaths(g: ValveGraph): Map<String, Map<String, Int>> {
 }
 
 typealias TraverseCacheKey = Triple<String, Int, List<String>>
-typealias TraverseCacheMap = MutableMap<TraverseCacheKey, StepsTaken>
+typealias TraverseCacheMap = MutableMap<TraverseCacheKey, Int>
 
 class TraverseValves(
-    private val valves: ValveList,
+    valves: ValveList,
     private val maxTime: Int,
 ) {
     private val graph: ValveGraph = valves.associateBy { it.label }
@@ -67,7 +56,7 @@ class TraverseValves(
     private var skipValves: Set<String> = setOf()
     private var cache: TraverseCacheMap = mutableMapOf()
 
-    fun traverse(skipValves: Set<String> = setOf()): StepsTaken {
+    fun traverse(skipValves: Set<String> = setOf()): Int {
         this.skipValves = skipValves
         this.cache = mutableMapOf()
         val openedValves = setOf<String>()
@@ -79,11 +68,11 @@ class TraverseValves(
         valve: Valve,
         time: Int = 0,
         openedValves: Set<String>,
-    ): StepsTaken {
+    ): Int {
 //        println("== Minute $time: At valve ${valve.label} ==")
 
         if (openedValves.size == workingValves.size || time >= maxTime) {
-            return listOf()
+            return 0
         }
 
         val timeRemaining = maxTime - time
@@ -95,7 +84,7 @@ class TraverseValves(
 
         val openValveResult = openValve(valve, time, openedValves)
         val moveToValveResult = moveToConnectedValves(valve, time, openedValves)
-        val bestResult = listOf(openValveResult, moveToValveResult).maxBy { it.pressureRelease(maxTime) }
+        val bestResult = max(openValveResult, moveToValveResult)
 
         cache[cacheKey] = bestResult
 
@@ -106,24 +95,24 @@ class TraverseValves(
         valve: Valve,
         time: Int,
         openedValves: Set<String>,
-    ): StepsTaken {
+    ): Int {
         if (valve.label in openedValves || valve.flowRate == 0 || valve.label in skipValves) {
-            return listOf()
+            return 0
         }
-//        println("You open valve ${valve.label}")
+
         val nextTime = time + 1
         val nextOpenedValves = openedValves + valve.label
-        val stepTaken = StepTaken(Action.OPENED_VALVE, valve, nextTime)
+        val pressureRelease = (maxTime - nextTime) * valve.flowRate
 
-        return listOf(stepTaken) + takeNextStep(valve, nextTime, nextOpenedValves,)
+        return pressureRelease + takeNextStep(valve, nextTime, nextOpenedValves,)
     }
 
     fun moveToConnectedValves(
         valve: Valve,
         time: Int,
         openedValves: Set<String>,
-    ): StepsTaken {
-        val outcomes = mutableListOf<StepsTaken>()
+    ): Int {
+        var bestOutcome = 0
 
         for (edge in this.edges[valve.label]!!) {
             val (toValveLabel, distance) = edge
@@ -138,17 +127,14 @@ class TraverseValves(
             }
 
             val toValve = graph[toValveLabel]!!
-            val stepTaken = StepTaken(Action.MOVED_TO_VALVE, toValve, nextTime)
-            val outcome = listOf(stepTaken) + takeNextStep(toValve, nextTime, openedValves)
+            val outcome = takeNextStep(toValve, nextTime, openedValves)
 
-            outcomes.add(outcome)
+            if (outcome > bestOutcome) {
+                bestOutcome = outcome
+            }
         }
 
-        if (outcomes.isEmpty()) {
-            return listOf()
-        }
-
-        return outcomes.maxBy { it.pressureRelease(maxTime) }
+        return bestOutcome
     }
 
 }
@@ -169,13 +155,7 @@ object Day16 : Solution.LinedInput<ValveList>(day = 16) {
 
     override fun part1(input: ValveList): Any {
 //        val traverser = TraverseValves(input, 30)
-//        val result = traverser.traverse()
-//
-//        result.forEach {
-//            println("Minute ${it.time}: valve = ${it.valve.label}, action = ${it.action}")
-//        }
-//
-//        return result.pressureRelease(30)
+//        return traverser.traverse()
         return Unit
     }
 
@@ -203,12 +183,10 @@ object Day16 : Solution.LinedInput<ValveList>(day = 16) {
             val skipValves = filterValves(i)
             val youSkipValves = skipValves
             val elephantSkipValves = allWorkingValves.toSet() - skipValves
-            val youStepsTaken = youTraverser.traverse(youSkipValves)
-            val elephantStepsTaken = elephantTraverser.traverse(elephantSkipValves)
-            val ypr = youStepsTaken.pressureRelease(26)
-            val epr = elephantStepsTaken.pressureRelease(26)
-            val tpr = ypr + epr
-
+            val youResult = youTraverser.traverse(youSkipValves)
+            val elephantResult = elephantTraverser.traverse(elephantSkipValves)
+            val tpr = youResult + elephantResult
+            println("Attempt $i: $tpr")
             if (tpr > bestOutcome.first) {
                 bestOutcome = Triple(tpr, youSkipValves, elephantSkipValves)
             }
@@ -219,9 +197,10 @@ object Day16 : Solution.LinedInput<ValveList>(day = 16) {
         println("... elephant covered valves ${allWorkingValves - bestOutcome.third}")
 
         return bestOutcome.first
+//        return Unit
     }
 }
 
 fun main() {
-    Day16.solve(test = true)
+    Day16.solve(test = false)
 }
