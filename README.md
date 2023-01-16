@@ -21,3 +21,4 @@ Solutions in [Kotlin](https://www.kotlinlang.org/)
 | [15](https://adventofcode.com/2022/day/15) | Beacon Exclusion Zone   | [src/day15](src/day15/solution1/App.kt) |
 | [16](https://adventofcode.com/2022/day/16) | Proboscidea Volcanium   | [src/day16](src/day16/solution1/App.kt) |
 | [17](https://adventofcode.com/2022/day/17) | Pyroclastic Flow        | [src/day17](src/day17/solution1/App.kt) |
+| [18](https://adventofcode.com/2022/day/18) | Boiling Boulders        | [src/day18](src/day18/solution1/App.kt) |
