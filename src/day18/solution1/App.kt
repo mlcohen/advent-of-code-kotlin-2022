@@ -32,10 +32,7 @@ object Day18 : Solution.LinedInput<ParsedInput>(day = 18) {
 
     override fun part1(input: ParsedInput): Any {
         val cubes = input.toSet()
-        val exposedFaces = cubes.fold(0) { count, cube ->
-            count + Directions.count { dir -> (cube + dir) !in cubes }
-        }
-        return exposedFaces
+        return cubes.sumOf { cube -> Directions.count { dir -> (cube + dir) !in cubes } }
     }
 
     override fun part2(input: ParsedInput): Any {
