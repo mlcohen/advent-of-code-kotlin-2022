@@ -1,4 +1,4 @@
-package day18
+package day18.solution1
 
 // Original solution used to solve the AoC day 18 puzzle.
 
@@ -36,7 +36,58 @@ object Day18 : Solution.LinedInput<ParsedInput>(day = 18) {
     }
 
     override fun part2(input: ParsedInput): Any {
-        return Unit
+        val cubes = input.toSet()
+        val maxX = cubes.maxOf { it.x }
+        val maxY = cubes.maxOf { it.y }
+        val maxZ = cubes.maxOf { it.z }
+        var exposedFaces = cubes.sumOf { cube -> Directions.count { dir -> (cube + dir) !in cubes } }
+
+        val airCubes = cubes
+            .map { cube -> Directions.map { dir -> dir + cube }.filter { it !in cubes } }
+            .flatten()
+            .toSet()
+
+        val airPockets = mutableListOf<Set<Vec3>>()
+        val candidateAirCubes = airCubes.toMutableSet()
+
+        while (candidateAirCubes.isNotEmpty()) {
+            val candidateAirCube = candidateAirCubes.first()
+            candidateAirCubes.remove(candidateAirCube)
+            var queue = listOf(candidateAirCube)
+            val airPocket = mutableSetOf<Vec3>()
+
+            while (queue.isNotEmpty()) {
+                val airCube = queue.first()
+
+                for (d in Directions) {
+                    val cube = d + airCube
+                    if (cube in airPocket || cube in cubes || cube in queue) {
+                        continue
+                    }
+                    candidateAirCubes.remove(cube)
+                    queue += cube
+                }
+
+                if (airCube.x !in 0..maxX || airCube.y !in 0..maxY || airCube.z !in 0..maxZ) {
+                    break
+                }
+
+                airPocket.add(airCube)
+                queue = queue.drop(1)
+            }
+
+            if (queue.isEmpty()) {
+                airPockets.add(airPocket.toSet())
+            }
+        }
+
+        val enclosedFaces = airPockets.sumOf { airPocket ->
+            airPocket.sumOf { airCube ->
+                Directions.map { it + airCube }.count { it in cubes }
+            }
+        }
+
+        return exposedFaces - enclosedFaces
     }
 }
 
