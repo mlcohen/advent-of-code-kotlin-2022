@@ -6,7 +6,7 @@ import common.Solution
 import kotlin.math.max
 import kotlin.math.min
 
-data class Vec2(val x: Int, val y: Int) {
+data class Vec2(val x: Long, val y: Long) {
     operator fun plus(v: Vec2): Vec2 {
         return Vec2(this.x + v.x, this.y + v.y)
     }
@@ -74,6 +74,8 @@ data class PositionedRock(val rock: Rock, val position: Point) {
     val top = position.y
     val bottom = position.y - rock.height + 1
 
+    constructor(shape: String, position: Point) : this(Rock(shape), position)
+
     fun move(d: Direction): PositionedRock {
         return this.copy(position = position + d.offset)
     }
@@ -82,7 +84,7 @@ data class PositionedRock(val rock: Rock, val position: Point) {
         return (p.x in this.left..this.right) && (p.y in this.bottom..this.top)
     }
 
-    fun hasElementAt(x: Int, y: Int): Boolean {
+    fun hasElementAt(x: Long, y: Long): Boolean {
         return this.hasElementAt(Point(x, y))
     }
 
@@ -94,32 +96,55 @@ data class PositionedRock(val rock: Rock, val position: Point) {
         val row = this.top - p.y
         val col = p.x - this.left
 
-        return this.rock.elementAt(row, col)
+        return this.rock.elementAt(row.toInt(), col.toInt())
     }
 }
 
-class Chamber(val width: Int) {
+interface Chamber {
+    val height: Long
+    val width: Long
+    fun rowAt(y: Long): List<Char>
+    fun takeTopRows(num: Int): List<List<Char>>
+    fun contains(x: Long, y: Long): Boolean
+    fun hasSettledRockAt(x: Long, y: Long): Boolean
+    fun rockTouchesWall(rock: PositionedRock): Boolean
+    fun rockItersectsSettledRock(rock: PositionedRock): Boolean
+    fun rockTouchesFloor(rock: PositionedRock): Boolean
+    fun settleRock(rock: Rock, position: Point)
+    fun settleRock(rock: PositionedRock)
+    fun prettyPrint(limit: Int?)
+}
+
+class SimpleChamber(override val width: Long) : Chamber {
 
     private var grid: MutableList<MutableList<Char>> = mutableListOf()
-    val height: Int get() = grid.size
+    override val height: Long get() = grid.size.toLong()
 
-    fun contains(x: Int, y: Int): Boolean {
+    override fun rowAt(y: Long): List<Char> {
+        return this.grid[y.toInt()].toList()
+    }
+
+    override fun takeTopRows(num: Int): List<List<Char>> {
+        return this.grid.let { if (num > this.height) it.toList() else it.takeLast(num) }.map { it.toList() }
+    }
+
+    override fun contains(x: Long, y: Long): Boolean {
         return (x in  0 until this.width) && (y in 0 until this.height)
     }
 
-    fun hasSettledRockAt(x: Int, y: Int): Boolean {
+    override fun hasSettledRockAt(x: Long, y: Long): Boolean {
         if (!this.contains(x, y)) {
             return false
         }
 
-        return grid[y][x] == '#'
+        return grid[y.toInt()][x.toInt()] == '#'
     }
 
-    fun rockTouchesWall(rock: PositionedRock): Boolean {
+    override fun rockTouchesWall(rock: PositionedRock): Boolean {
         return rock.left < 0 || rock.right >= this.width
     }
 
-    fun rockItersectsSettledRock(rock: PositionedRock): Boolean {
+    override fun rockItersectsSettledRock(rock: PositionedRock): Boolean {
         for (y in rock.bottom..rock.top) {
             for (x in 0 until this.width) {
                 if (this.hasSettledRockAt(x, y) && rock.hasElementAt(x, y)) {
@@ -130,28 +155,138 @@ class Chamber(val width: Int) {
         return false
     }
 
-    fun rockTouchesFloor(rock: PositionedRock): Boolean {
+    override fun rockTouchesFloor(rock: PositionedRock): Boolean {
         return rock.bottom < 0
     }
 
-    fun settleRock(rock: Rock, position: Point) {
+    override fun settleRock(rock: Rock, position: Point) {
         this.settleRock(PositionedRock(rock, position))
     }
 
-    fun settleRock(rock: PositionedRock) {
+    override fun settleRock(rock: PositionedRock) {
         if (rock.top + 1 > this.height) {
             for (i in 0 .. (rock.top - this.height)) {
-                this.grid.add(MutableList(this.width) { '.' })
+                this.grid.add(MutableList(this.width.toInt()) { '.' })
             }
         }
 
         for (y in rock.bottom..rock.top) {
             for (x in rock.left..rock.right) {
                 if (rock.hasElementAt(x, y)) {
-                    this.grid[y][x] = '#'
+                    this.grid[y.toInt()][x.toInt()] = '#'
                 }
             }
         }
+    }
+
+    override fun prettyPrint(limit: Int?) {
+        var g = this.grid.toList().reversed()
+        g = limit?.let { g.take(limit) } ?: g
+        g.forEach { println(it.joinToString(" ")) }
+    }
+
+}
+
+class WindowedChamber(override val width: Long) : Chamber {
+    var grid: MutableList<MutableList<Char>> = mutableListOf()
+    private var _windowOffset = 0L
+
+    val windowSize = 100
+    val windowOffset: Long get() = this._windowOffset
+    override val height: Long get() = this.grid.size.toLong() + this.windowOffset
+
+    override fun rowAt(y: Long): List<Char> {
+        if (y < windowOffset) {
+            return listOf()
+        }
+        return this.grid[(y - windowOffset).toInt()].toList()
+    }
+
+    override fun takeTopRows(num: Int): List<List<Char>> {
+        return this.grid.let {
+            if (num > this.height) {
+                it.toList()
+            } else if (num > this.windowSize) {
+                it.takeLast(this.windowSize)
+            } else {
+                it.takeLast(num)
+            }
+        }.map { it.toList() }
+    }
+
+    override fun contains(x: Long, y: Long): Boolean {
+        return (x in  0 until this.width) && (y in this.windowOffset until this.height)
+    }
+
+    override fun hasSettledRockAt(x: Long, y: Long): Boolean {
+        if (!this.contains(x, y)) {
+            return false
+        }
+
+        val yOffset = y - this.windowOffset
+        return grid[yOffset.toInt()][x.toInt()] == '#'
+    }
+
+    override fun rockTouchesWall(rock: PositionedRock): Boolean {
+        return rock.left < 0 || rock.right >= this.width
+    }
+
+    override fun rockItersectsSettledRock(rock: PositionedRock): Boolean {
+        for (y in rock.bottom..rock.top) {
+            for (x in 0 until this.width) {
+                if (this.hasSettledRockAt(x, y) && rock.hasElementAt(x, y)) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    override fun rockTouchesFloor(rock: PositionedRock): Boolean {
+        return rock.bottom < this.windowOffset
+    }
+
+    override fun settleRock(rock: Rock, position: Point) {
+        this.settleRock(PositionedRock(rock, position))
+    }
+
+    override fun settleRock(rock: PositionedRock) {
+        if (rock.top < this.windowOffset || rock.bottom < this.windowOffset) {
+            return
+        }
+
+        if (rock.top + 1 > this.height) {
+            for (i in 0 .. (rock.top - this.height)) {
+                this.grid.add(MutableList(this.width.toInt()) { '.' })
+            }
+        }
+
+        for (y in rock.bottom..rock.top) {
+            for (x in rock.left..rock.right) {
+                if (rock.hasElementAt(x, y)) {
+                    val yOffset = y - this.windowOffset
+                    this.grid[yOffset.toInt()][x.toInt()] = '#'
+                }
+            }
+        }
+
+        val windowOverrun = this.grid.size - this.windowSize
+        if (windowOverrun > 0) {
+            this.grid = this.grid.drop(windowOverrun).toMutableList()
+            this._windowOffset += windowOverrun
+        }
+    }
+
+    override fun prettyPrint(limit: Int?) {
+        var g = this.grid.toList().reversed()
+        g = limit?.let {
+            if (it > this.windowSize) {
+                g
+            } else {
+                g.take(limit)
+            }
+        } ?: g
+        g.forEach { println(it.joinToString(" ")) }
     }
 
 }
@@ -193,7 +328,8 @@ class DropRockIterator(
 
         for (direction in listOf(moveDirection, Direction.DOWN)) {
             val (movedRock, rockStopped) = when (direction) {
-                Direction.LEFT, Direction.RIGHT -> {
+                Direction.LEFT,
+                Direction.RIGHT -> {
                     val movedRock = this._fallingRock.move(direction)
                     if (this.chamber.rockTouchesWall(movedRock)) {
                         (this._fallingRock to false)
@@ -227,22 +363,44 @@ class DropRockIterator(
     }
 }
 
+data class DroppedRockEvent(
+    val droppedRocks: Long,
+    val jetPatternIndex: Int,
+    val rockSequenceIndex: Int,
+    val chamberHeight: Long,
+)
+
 class DropRocksIterator(
     val chamber: Chamber,
     val jetPattern: String,
     val rockSequence: List<Rock>,
+    private val onDroppedRock: ((DroppedRockEvent, Chamber) -> Unit)? = null,
 ) {
-    var rockSequenceCounter: Int = 1
-    var jetPatternCounter: Int = 0
+    var rockSequenceCounter: Long = 1L
+    var jetPatternCounter: Long = 0L
+    var droppedRocksCounter: Long = 0L
     var currentDropRockIterator: DropRockIterator = DropRockIterator(rockSequence.first(), chamber)
 
     val fallingRock: PositionedRock get() = this.currentDropRockIterator.fallingRock
 
     private fun prepareNextRockToDrop() {
+        this.droppedRocksCounter += 1
+        val jetPatternIndex = this.jetPatternCounter % this.jetPattern.length
         val rockSequenceIndex = rockSequenceCounter % rockSequence.size
-        val nextRock = rockSequence[rockSequenceIndex]
+
+        onDroppedRock?.let { fn ->
+            val event = DroppedRockEvent(
+                this.droppedRocksCounter,
+                jetPatternIndex.toInt(),
+                rockSequenceIndex.toInt(),
+                this.chamber.height,
+            )
+            fn(event, this.chamber)
+        }
+
+        val nextRock = rockSequence[rockSequenceIndex.toInt()]
         this.currentDropRockIterator = DropRockIterator(nextRock, chamber)
-        rockSequenceCounter += 1
+        this.rockSequenceCounter += 1
     }
 
     private fun takeNextDropRockStep(): Boolean {
@@ -250,11 +408,11 @@ class DropRocksIterator(
             return true
         }
 
-        val jetPatterIndex = this.jetPatternCounter % this.jetPattern.length
-        val action = when (this.jetPattern[jetPatterIndex]) {
+        val jetPatternIndex = this.jetPatternCounter % this.jetPattern.length
+        val action = when (this.jetPattern[jetPatternIndex.toInt()]) {
             '>' -> DropRockAction.JET_PUSH_ROCK_RIGHT
             '<' -> DropRockAction.JET_PUSH_ROCK_LEFT
-            else -> throw error("Invalid jet action at index ${jetPatterIndex}")
+            else -> throw error("Invalid jet action at index ${jetPatternIndex}")
         }
         currentDropRockIterator.next(action)
         this.jetPatternCounter += 1
@@ -283,30 +441,36 @@ class DropRocksIterator(
     }
 }
 
-class DropRocksRunner {
-
-    fun dropRocks(numRocks: Int, jetPattern: String, rockSequence: List<String>, chamberWidth: Int = 7): Chamber {
-        val chamber = Chamber(width = chamberWidth)
+class DropRocksRunner(
+    val jetPattern: String,
+    val rockSequence: List<String>,
+    val createChamberFn: () -> Chamber,
+) {
+    fun dropRocks(
+        numRocks: Long,
+        onDroppedRock: ((DroppedRockEvent, Chamber) -> Unit)? = null,
+    ): Chamber {
+        val chamber = this.createChamberFn()
         val iter = DropRocksIterator(
             chamber = chamber,
-            jetPattern = jetPattern,
-            rockSequence = rockSequence.map { Rock(it) }
+            jetPattern = this.jetPattern,
+            rockSequence = this.rockSequence.map { Rock(it) },
+            onDroppedRock,
         )
-        val printer = PrettyPrinter()
 
         (1..numRocks).forEach { step ->
-//            println("*** Drop Rock $step")
             iter.dropNextRock()
-//            printer.print(chamber)
-//            println()
         }
 
         return chamber
     }
-
 }
 
-class Canvas(val width: Int, val height: Int, defaultCellChar: Char = ' ') {
+class Canvas(
+    val width: Int,
+    val height: Int,
+    defaultCellChar: Char = ' '
+) {
     private val grid: MutableList<MutableList<Char>> = MutableList(height) { MutableList(width) { defaultCellChar } }
 
     fun drawCell(c: Char, row: Int, col: Int): Canvas {
@@ -351,8 +515,8 @@ class Canvas(val width: Int, val height: Int, defaultCellChar: Char = ' ') {
 class PrettyPrinter() {
     fun print(chamber: Chamber, fallingRock: PositionedRock? = null) {
         val canvas = Canvas(
-            width = chamber.width + 2,
-            height = (fallingRock?.let { it.top + 1 } ?: chamber.height) + 1,
+            width = chamber.width.toInt() + 2,
+            height = (fallingRock?.let { it.top.toInt() + 1 } ?: chamber.height.toInt()) + 1,
             defaultCellChar = '.',
         )
 
@@ -385,7 +549,7 @@ class PrettyPrinter() {
                 if (chamber.hasSettledRockAt(x, y)) {
                     val col = x + 1
                     val row = canvas.height - y - 2
-                    canvas.drawCell('#', row, col)
+                    canvas.drawCell('#', row.toInt(), col.toInt())
                 }
             }
         }
@@ -397,7 +561,7 @@ class PrettyPrinter() {
                 if (rock.hasElementAt(x, y)) {
                     val col = x + 1
                     val row = canvas.height - y - 2
-                    canvas.drawCell('@', row, col)
+                    canvas.drawCell('@', row.toInt(), col.toInt())
                 }
             }
         }
@@ -414,18 +578,70 @@ object Day17 : Solution.LinedInput<ParsedInput>(day = 17) {
         }.first()
     }
 
-    override fun part1(input: ParsedInput): Any {
+    override fun part1(jetPattern: ParsedInput): Any {
         val rockSequence = ROCK_SHAPES
-        val runner = DropRocksRunner()
-        val chamber = runner.dropRocks(2022, input, rockSequence)
+        val runner = DropRocksRunner(jetPattern, rockSequence) { SimpleChamber(7) }
+        val chamber = runner.dropRocks(2022)
         return chamber.height
     }
 
-    override fun part2(input: ParsedInput): Any {
-        return Unit
+    override fun part2(jetPattern: ParsedInput): Any {
+        val rockSequence = ROCK_SHAPES
+        val runner = DropRocksRunner(jetPattern, rockSequence) { SimpleChamber(7) }
+
+        val droppedRockEvents = mutableListOf<DroppedRockEvent>()
+        val loopDetectionMap = mutableMapOf<Triple<String, Int, Int>, List<DroppedRockEvent>>()
+        val loopDetectionHits = mutableMapOf<Triple<String, Int, Int>, Int>()
+
+        runner.dropRocks(2000) { event, chamber ->
+            droppedRockEvents.add(event)
+            val rows = chamber.takeTopRows(10)
+            val coverage = rows.fold(MutableList(chamber.width.toInt()) { '.' }) { l, r ->
+                r.forEachIndexed { idx, c -> if (c == '#') l[idx] = '#' }
+                l
+            }
+
+            if (coverage.all { it == '#' }) {
+                val key = Triple(rows.toString(), event.jetPatternIndex, event.rockSequenceIndex)
+
+                if (key in loopDetectionMap) {
+                    val hitCount = loopDetectionHits.getOrDefault(key, 0)
+                    loopDetectionHits[key] = hitCount + 1
+                }
+
+                val value = loopDetectionMap.getOrDefault(key, listOf())
+                loopDetectionMap[key] = value + event
+            }
+        }
+
+        val loopDetectionKey = if (loopDetectionHits.isNotEmpty()) loopDetectionHits.keys.first() else null
+        val loopDetectionEvents = loopDetectionKey?.let { loopDetectionMap[it] }
+
+        val (firstLoopDetectionEvent, droppedRocksDiff, chamberHeightDiff) = loopDetectionEvents
+            ?.windowed(2)
+            ?.first()
+            ?.let { (evtA, evtB) ->
+                val droppedRocksDiff = evtB.droppedRocks - evtA.droppedRocks
+                val chamberHeightDiff = evtB.chamberHeight - evtA.chamberHeight
+                Triple(evtA, droppedRocksDiff, chamberHeightDiff)
+            } ?: throw error("No pattern detected")
+
+        val rocksToDrop = 1_000_000_000_000L - firstLoopDetectionEvent.droppedRocks
+        val intermediateChamberHeight = (rocksToDrop / droppedRocksDiff) * chamberHeightDiff + firstLoopDetectionEvent.chamberHeight
+        val remainingRocksToDrop = rocksToDrop % droppedRocksDiff
+
+        val remainingLoopDetectionEvt = droppedRockEvents
+            .dropWhile { it != firstLoopDetectionEvent }
+            .drop(1)
+            .take(remainingRocksToDrop.toInt())
+            .last()
+        val remainingHeight = remainingLoopDetectionEvt.chamberHeight - firstLoopDetectionEvent.chamberHeight
+        val finalChamberHeight = intermediateChamberHeight + remainingHeight
+
+        return finalChamberHeight
     }
 }
 
 fun main() {
-    Day17.solve(test = false)
+    Day17.solve(test = true)
 }
